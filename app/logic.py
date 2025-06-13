@@ -1,6 +1,6 @@
 import uuid, os
 from dotenv import load_dotenv
-from agents.plan_agent import generate_plan
+from app.agents.plan_agent import generate_plan
 
 load_dotenv()
 
