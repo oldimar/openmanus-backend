@@ -1,7 +1,8 @@
 import uuid, os
 from dotenv import load_dotenv
-from app.agents.plan_agent import generate_plan
-from app.agents.code_agent import generate_code
+from agents.plan_agent import generate_plan
+from agents.code_agent import generate_code
+from agents.write_agent import generate_text  # NOVO
 
 load_dotenv()
 
@@ -13,10 +14,17 @@ def process_task(task_text):
     tasks[task_id] = {"status": "processing", "result": None}
 
     try:
-        # Verifica o prefixo da tarefa
-        if task_text.lower().startswith("codigo:"):
-            prompt = task_text[len("codigo:"):].strip()
-            result = generate_code(prompt)
+        lower = task_text.lower().strip()
+
+        # 🔹 Detecta prefixos e redireciona para o agente apropriado
+        if lower.startswith("codigo:"):
+            content = task_text[len("codigo:"):].strip()
+            result = generate_code(content)
+
+        elif lower.startswith("escreva:"):
+            content = task_text[len("escreva:"):].strip()
+            result = generate_text(content)
+
         else:
             result = generate_plan(task_text)
 
