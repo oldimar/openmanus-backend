@@ -1,8 +1,12 @@
-import uuid, os
+import uuid, os, sys
 from dotenv import load_dotenv
+
+# ✅ Garante que "agents" será encontrado mesmo no deploy
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from agents.plan_agent import generate_plan
 from agents.code_agent import generate_code
-from agents.write_agent import generate_text  # NOVO
+from agents.write_agent import generate_text
 
 load_dotenv()
 
