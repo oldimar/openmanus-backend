@@ -1,9 +1,11 @@
 FROM python:3.11-slim
 
 WORKDIR /app
+
 COPY app/ ./app/
 
-RUN pip install fastapi uvicorn
+# Instala FastAPI, Uvicorn, OpenAI e python-dotenv
+RUN pip install fastapi uvicorn openai python-dotenv
 
 EXPOSE 8000
 
