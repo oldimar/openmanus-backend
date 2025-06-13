@@ -7,6 +7,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from agents.plan_agent import generate_plan
 from agents.code_agent import generate_code
 from agents.write_agent import generate_text
+from agents.report_agent import generate_report
 
 load_dotenv()
 
@@ -18,16 +19,17 @@ def process_task(task_text):
     tasks[task_id] = {"status": "processing", "result": None}
 
     try:
-        lower = task_text.lower().strip()
+        if task_text.lower().startswith("codigo:"):
+            prompt = task_text[7:].strip()
+            result = generate_code(prompt)
 
-        # 🔹 Detecta prefixos e redireciona para o agente apropriado
-        if lower.startswith("codigo:"):
-            content = task_text[len("codigo:"):].strip()
-            result = generate_code(content)
+        elif task_text.lower().startswith("texto:"):
+            prompt = task_text[6:].strip()
+            result = generate_text(prompt)
 
-        elif lower.startswith("escreva:"):
-            content = task_text[len("escreva:"):].strip()
-            result = generate_text(content)
+        elif task_text.lower().startswith("relatorio:"):
+            prompt = task_text[10:].strip()
+            result = generate_report(prompt)
 
         else:
             result = generate_plan(task_text)
