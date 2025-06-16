@@ -1,9 +1,5 @@
-import uuid, os, sys
+import uuid, os
 from dotenv import load_dotenv
-
-# ✅ Garante que "agents" será encontrado mesmo no deploy
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
 from agents.plan_agent import generate_plan
 from agents.code_agent import generate_code
 from agents.write_agent import generate_text
@@ -13,6 +9,7 @@ from agents.image_agent import generate_image
 load_dotenv()
 
 tasks = {}
+
 model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
 def process_task(task_text):
@@ -20,23 +17,17 @@ def process_task(task_text):
     tasks[task_id] = {"status": "processing", "result": None}
 
     try:
-        lower = task_text.lower().strip()
+        if task_text.lower().startswith("codigo:"):
+            result = generate_code(task_text.replace("codigo:", "").strip())
 
-        if lower.startswith("codigo:"):
-            prompt = task_text[7:].strip()
-            result = generate_code(prompt)
+        elif task_text.lower().startswith("artigo:"):
+            result = generate_text(task_text.replace("artigo:", "").strip())
 
-        elif lower.startswith("texto:"):
-            prompt = task_text[6:].strip()
-            result = generate_text(prompt)
+        elif task_text.lower().startswith("relatorio:"):
+            result = generate_report(task_text.replace("relatorio:", "").strip())
 
-        elif lower.startswith("relatorio:"):
-            prompt = task_text[10:].strip()
-            result = generate_report(prompt)
-
-        elif lower.startswith("imagem:"):
-            prompt = task_text[7:].strip()
-            result = generate_image(prompt)
+        elif task_text.lower().startswith("imagem:"):
+            result = generate_image(task_text.replace("imagem:", "").strip())
 
         else:
             result = generate_plan(task_text)
@@ -49,4 +40,3 @@ def process_task(task_text):
         tasks[task_id]["result"] = f"Erro: {str(e)}"
 
     return task_id
-    
