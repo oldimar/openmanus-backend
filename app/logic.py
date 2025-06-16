@@ -1,10 +1,10 @@
 import uuid, os
 from dotenv import load_dotenv
-from agents.plan_agent import generate_plan
-from agents.code_agent import generate_code
-from agents.write_agent import generate_text
-from agents.report_agent import generate_report
-from agents.image_agent import generate_image
+from app.agents.plan_agent import generate_plan
+from app.agents.code_agent import generate_code
+from app.agents.write_agent import generate_text
+from app.agents.report_agent import generate_report
+from app.agents.image_agent import generate_image
 
 load_dotenv()
 
