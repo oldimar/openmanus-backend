@@ -8,6 +8,7 @@ from agents.plan_agent import generate_plan
 from agents.code_agent import generate_code
 from agents.write_agent import generate_text
 from agents.report_agent import generate_report
+from agents.image_agent import generate_image
 
 load_dotenv()
 
@@ -19,17 +20,23 @@ def process_task(task_text):
     tasks[task_id] = {"status": "processing", "result": None}
 
     try:
-        if task_text.lower().startswith("codigo:"):
+        lower = task_text.lower().strip()
+
+        if lower.startswith("codigo:"):
             prompt = task_text[7:].strip()
             result = generate_code(prompt)
 
-        elif task_text.lower().startswith("texto:"):
+        elif lower.startswith("texto:"):
             prompt = task_text[6:].strip()
             result = generate_text(prompt)
 
-        elif task_text.lower().startswith("relatorio:"):
+        elif lower.startswith("relatorio:"):
             prompt = task_text[10:].strip()
             result = generate_report(prompt)
+
+        elif lower.startswith("imagem:"):
+            prompt = task_text[7:].strip()
+            result = generate_image(prompt)
 
         else:
             result = generate_plan(task_text)
@@ -42,3 +49,4 @@ def process_task(task_text):
         tasks[task_id]["result"] = f"Erro: {str(e)}"
 
     return task_id
+    
