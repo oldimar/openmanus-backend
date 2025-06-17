@@ -1,19 +1,28 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from .logic import process_task, tasks
+from fastapi import UploadFile, File
+from uuid import uuid4
+import os
+import shutil
 
-class TaskRequest(BaseModel):
-    task: str
+@app.post("/upload")
+async def upload_files(files: list[UploadFile] = File(...)):
+    # Gerar um task_id único
+    task_id = str(uuid4())
 
-app = FastAPI(title="OpenManus Backend")
+    # Criar pasta para essa task
+    upload_folder = f"app/uploads/{task_id}"
+    os.makedirs(upload_folder, exist_ok=True)
 
-@app.post("/task")
-def create_task(req: TaskRequest):
-    task_id = process_task(req.task)
-    return {"task_id": task_id, "status": "processing"}
+    saved_files = []
 
-@app.get("/status/{task_id}")
-def get_status(task_id: str):
-    if task_id not in tasks:
-        raise HTTPException(status_code=404, detail="Task not found")
-    return {"task_id": task_id, **tasks[task_id]}
+    for file in files:
+        file_path = os.path.join(upload_folder, file.filename)
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        saved_files.append(file.filename)
+
+    return {
+        "task_id": task_id,
+        "status": "success",
+        "saved_files": saved_files,
+        "path": upload_folder
+    }
