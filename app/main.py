@@ -1,45 +1,26 @@
 from fastapi import FastAPI, UploadFile, File
-from logic import process_task, tasks
-from fastapi.responses import JSONResponse
-from uuid import uuid4
-import os
-import shutil
+from app.logic import process_task, tasks
 
 app = FastAPI()
 
-# Endpoint original - Criação de tarefa (usa os agentes logic.py)
-@app.post("/task")
+@app.post("/tasks/")
 async def create_task(task_text: str):
     task_id = process_task(task_text)
-    return {"task_id": task_id}
+    return {"task_id": task_id, "status": tasks[task_id]["status"]}
 
-# Endpoint original - Verificar status da tarefa
-@app.get("/status/{task_id}")
-async def get_task_status(task_id: str):
+@app.get("/tasks/{task_id}")
+def get_task_status(task_id: str):
     task = tasks.get(task_id)
     if task:
-        return {"task_id": task_id, **task}
-    else:
-        return JSONResponse(status_code=404, content={"error": "Task not found"})
+        return {"task_id": task_id, "status": task["status"], "result": task["result"]}
+    return {"error": "Task ID not found"}
 
-# Novo Endpoint - Upload de arquivos
-@app.post("/upload")
-async def upload_files(files: list[UploadFile] = File(...)):
-    task_id = str(uuid4())
-    upload_folder = f"app/uploads/{task_id}"
-    os.makedirs(upload_folder, exist_ok=True)
-
-    saved_files = []
-
-    for file in files:
-        file_path = os.path.join(upload_folder, file.filename)
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-        saved_files.append(file.filename)
-
-    return {
-        "task_id": task_id,
-        "status": "success",
-        "saved_files": saved_files,
-        "path": upload_folder
-    }
+@app.post("/uploadfile/")
+async def upload_file(file: UploadFile = File(...)):
+    try:
+        file_location = f"uploads/{file.filename}"
+        with open(file_location, "wb") as f:
+            f.write(await file.read())
+        return {"filename": file.filename, "message": "File uploaded successfully"}
+    except Exception as e:
+        return {"error": str(e)}
