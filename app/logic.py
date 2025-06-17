@@ -18,17 +18,13 @@ def process_task(task_text):
 
     try:
         if task_text.lower().startswith("codigo:"):
-            result = generate_code(task_text.replace("codigo:", "").strip())
-
-        elif task_text.lower().startswith("artigo:"):
-            result = generate_text(task_text.replace("artigo:", "").strip())
-
+            result = generate_code(task_text[7:].strip())
+        elif task_text.lower().startswith("texto:"):
+            result = generate_text(task_text[6:].strip())
         elif task_text.lower().startswith("relatorio:"):
-            result = generate_report(task_text.replace("relatorio:", "").strip())
-
+            result = generate_report(task_text[10:].strip())
         elif task_text.lower().startswith("imagem:"):
-            result = generate_image(task_text.replace("imagem:", "").strip())
-
+            result = generate_image(task_text[7:].strip())
         else:
             result = generate_plan(task_text)
 
