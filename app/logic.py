@@ -6,6 +6,7 @@ from app.agents.code_agent import generate_code
 from app.agents.write_agent import generate_text
 from app.agents.report_agent import generate_report
 from app.agents.image_agent import generate_image
+from app.task_orchestrator import orchestrate_task
 from PyPDF2 import PdfReader
 from docx import Document
 
@@ -56,7 +57,7 @@ def process_task(task_text, task_id_files=None):
     tasks[task_id] = {"status": "processing", "result": None}
 
     try:
-        # Se tiver um task_id_files (relacionado ao upload anterior), leia os arquivos dessa pasta
+        # Se houver arquivos relacionados à task, leia os conteúdos
         extra_context = ""
         if task_id_files:
             upload_folder = os.path.join("uploads", task_id_files)
@@ -71,15 +72,23 @@ def process_task(task_text, task_id_files=None):
         # Junta o prompt do usuário + os conteúdos dos arquivos
         final_prompt = f"{task_text}\n\n{extra_context}" if extra_context else task_text
 
-        # Direciona para o agente correto
-        if task_text.lower().startswith("codigo:"):
+        # Verificar se a task envolve a palavra "planejar" para acionar o orquestrador
+        if "planejar" in task_text.lower():
+            result = orchestrate_task(final_prompt)
+
+        # Se não for orquestração, vai para o agente individual
+        elif task_text.lower().startswith("codigo:"):
             result = generate_code(final_prompt.replace("codigo:", "").strip())
+
         elif task_text.lower().startswith("texto:"):
             result = generate_text(final_prompt.replace("texto:", "").strip())
+
         elif task_text.lower().startswith("relatorio:"):
             result = generate_report(final_prompt.replace("relatorio:", "").strip())
+
         elif task_text.lower().startswith("imagem:"):
             result = generate_image(final_prompt.replace("imagem:", "").strip())
+
         else:
             result = generate_plan(final_prompt)
 
