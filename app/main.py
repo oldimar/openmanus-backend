@@ -2,16 +2,16 @@ from fastapi import FastAPI, UploadFile, File
 from app.logic import process_task, tasks
 import os
 import shutil
+from uuid import uuid4
+from typing import List
 
 app = FastAPI()
 
-# Rota: Criar Task
 @app.post("/tasks/")
 async def create_task(task_text: str):
     task_id = process_task(task_text)
     return {"task_id": task_id, "status": tasks[task_id]["status"]}
 
-# Rota: Verificar Status
 @app.get("/tasks/{task_id}")
 def get_task_status(task_id: str):
     task = tasks.get(task_id)
@@ -19,22 +19,30 @@ def get_task_status(task_id: str):
         return {"task_id": task_id, "status": task["status"], "result": task["result"]}
     return {"error": "Task ID not found"}
 
-# Rota: Upload de Arquivo
-@app.post("/uploadfile/")
-async def upload_file(file: UploadFile = File(...)):
+@app.post("/upload/")
+async def upload_files(files: List[UploadFile] = File(...)):
     try:
-        # Garantir que a pasta uploads exista
-        upload_folder = "uploads"
+        # Gera um novo task_id único
+        task_id = str(uuid4())
+
+        # Cria a pasta para essa task
+        upload_folder = os.path.join("uploads", task_id)
         os.makedirs(upload_folder, exist_ok=True)
 
-        # Caminho final do arquivo
-        file_path = os.path.join(upload_folder, file.filename)
+        saved_files = []
 
-        # Salvar o arquivo
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        for file in files:
+            file_path = os.path.join(upload_folder, file.filename)
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+            saved_files.append(file.filename)
 
-        return {"filename": file.filename, "message": "File uploaded successfully"}
+        return {
+            "task_id": task_id,
+            "status": "success",
+            "saved_files": saved_files,
+            "folder_path": upload_folder
+        }
 
     except Exception as e:
         return {"error": str(e)}
