@@ -8,13 +8,13 @@ from app.agents.code_agent import generate_code
 from app.agents.write_agent import generate_text
 from app.agents.report_agent import generate_report
 from app.agents.image_agent import generate_image
+from app.agents.task_router_agent import decide_agents
 
 load_dotenv()
 
 tasks = {}
 UPLOAD_FOLDER = "uploads"
 model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-
 
 async def process_task(task_text, task_id):
     tasks[task_id] = {"status": "processing", "result": None}
@@ -25,7 +25,7 @@ async def process_task(task_text, task_id):
         task_type = task_data.get("task_type", "")
         task_id_files = task_data.get("task_id_files", "")
 
-        # 👉 1. Lê o conteúdo dos arquivos (se houver uploads)
+        # 👉 1. Lê o conteúdo dos anexos (se houver)
         extra_context = ""
         if task_id_files:
             folder_path = os.path.join(UPLOAD_FOLDER, task_id_files)
@@ -40,54 +40,47 @@ async def process_task(task_text, task_id):
                         file_contents.append(f"[Erro ao ler {filename}: {str(e)}]")
                 extra_context = "\n\n".join(file_contents)
 
-        # 👉 2. Monta o prompt final com anexo + descrição
+        # 👉 2. Monta o prompt final
         final_prompt = f"{task_description}\n\n{extra_context}" if extra_context else task_description
 
-        # 👉 3. Se task_type vier definido → força o agente escolhido
+        # 👉 3. Se task_type for informado, força o agente
         if task_type:
-            if task_type == "plan":
-                result = generate_plan(final_prompt)
-            elif task_type == "code":
-                result = generate_code(final_prompt)
-            elif task_type == "write":
-                result = generate_text(final_prompt)
-            elif task_type == "report":
-                result = generate_report(final_prompt)
-            elif task_type == "image":
-                result = generate_image(final_prompt)
-            else:
-                tasks[task_id]["status"] = "error"
-                tasks[task_id]["result"] = f"Erro: task_type '{task_type}' não reconhecido."
-                return
-        else:
-            # 👉 4. Se task_type não vier → Decidir automaticamente com base na descrição
-            desc_lower = task_description.lower()
+            result = run_agent_by_type(task_type, final_prompt)
+            tasks[task_id]["result"] = result
+            tasks[task_id]["status"] = "done"
+            return
 
-            if "planejar" in desc_lower:
-                plan_result = generate_plan(final_prompt)
-                code_result = generate_code(plan_result)
-                report_result = generate_report(code_result)
-                result = generate_text(report_result)
+        # 👉 4. Caso contrário, deixa a IA decidir quais agentes executar
+        agents_to_run = decide_agents(final_prompt)
 
-            elif "código" in desc_lower or "code" in desc_lower:
-                result = generate_code(final_prompt)
+        all_results = []
+        for agent in agents_to_run:
+            try:
+                agent_result = run_agent_by_type(agent, final_prompt)
+                all_results.append(f"Resultado do agente '{agent}':\n{agent_result}\n\n---\n")
+            except Exception as e:
+                all_results.append(f"[Erro ao rodar o agente {agent}: {str(e)}]")
 
-            elif "relatório" in desc_lower:
-                result = generate_report(final_prompt)
-
-            elif "imagem" in desc_lower:
-                result = generate_image(final_prompt)
-
-            else:
-                result = generate_plan(final_prompt)
-
-        tasks[task_id]["result"] = result
+        tasks[task_id]["result"] = "\n".join(all_results)
         tasks[task_id]["status"] = "done"
 
     except Exception as e:
         tasks[task_id]["status"] = "error"
         tasks[task_id]["result"] = f"Erro interno ao processar a task: {str(e)}"
 
+def run_agent_by_type(agent_type, prompt_text):
+    if agent_type == "plan":
+        return generate_plan(prompt_text)
+    elif agent_type == "code":
+        return generate_code(prompt_text)
+    elif agent_type == "write":
+        return generate_text(prompt_text)
+    elif agent_type == "report":
+        return generate_report(prompt_text)
+    elif agent_type == "image":
+        return generate_image(prompt_text)
+    else:
+        raise Exception(f"Agente desconhecido: '{agent_type}'")
 
 # Upload de arquivo único
 async def save_uploaded_file(file):
@@ -98,7 +91,6 @@ async def save_uploaded_file(file):
     with open(file_location, "wb") as f:
         f.write(await file.read())
     return {"task_id_files": folder_name, "filename": file.filename, "message": "File uploaded successfully"}
-
 
 # Upload de múltiplos arquivos
 async def save_uploaded_files(files):
