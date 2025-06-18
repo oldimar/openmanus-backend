@@ -47,7 +47,6 @@ def process_task(task_text):
             result = generate_code(task_description)
 
         elif task_type == "write":
-            # Se task_id_files for informado, tenta ler os arquivos da pasta de upload
             if task_id_files:
                 folder_path = os.path.join(UPLOAD_FOLDER, task_id_files)
                 try:
