@@ -4,8 +4,7 @@ import uuid
 
 app = FastAPI()
 
-
-# Rota 1: Criar uma Task (orquestração ou task_type específico)
+# Criar uma task
 @app.post("/tasks/")
 async def create_task(
     task_text: dict = Body(
@@ -17,18 +16,12 @@ async def create_task(
         }
     )
 ):
-    try:
-        task_id = str(uuid.uuid4())
-        result = await process_task(task_text, task_id)
-        tasks[task_id] = {"status": "done", "result": result}
-        return {"task_id": task_id, "status": "done", "result": result}
-    except Exception as e:
-        error_msg = f"Erro ao processar a task: {str(e)}"
-        tasks[task_id] = {"status": "error", "result": error_msg}
-        return {"task_id": task_id, "status": "error", "result": error_msg}
+    task_id = str(uuid.uuid4())
+    # Apenas cria a task de forma assíncrona (não devolve o result)
+    await process_task(task_text, task_id)
+    return {"task_id": task_id, "status": tasks[task_id]["status"]}
 
-
-# Rota 2: Consultar Status da Task
+# Consultar status e resultado da task
 @app.get("/tasks/{task_id}")
 async def get_task_status(task_id: str):
     task = tasks.get(task_id)
@@ -37,8 +30,7 @@ async def get_task_status(task_id: str):
     else:
         raise HTTPException(status_code=404, detail="Task ID not found")
 
-
-# Rota 3: Upload de arquivo único
+# Upload de arquivo único
 @app.post("/uploadfile/")
 async def upload_file(file: UploadFile = File(...)):
     try:
@@ -46,8 +38,7 @@ async def upload_file(file: UploadFile = File(...)):
     except Exception as e:
         return {"error": str(e)}
 
-
-# Rota 4: Upload de múltiplos arquivos
+# Upload de múltiplos arquivos
 @app.post("/uploadfiles/")
 async def upload_files(files: list[UploadFile] = File(...)):
     try:
