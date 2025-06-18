@@ -1,36 +1,45 @@
 import os
+import json
 from openai import OpenAI
 
 client = OpenAI()
 
 def decide_agents(prompt: str, model: str = "gpt-4o-mini") -> list:
     system_prompt = """
-Você é um orquestrador de tarefas de uma IA educacional.
+Você é um orquestrador de tarefas para um sistema de IA educacional.
 
-Sua função é analisar o pedido do professor + o conteúdo de anexos (se houver) e decidir quais agentes abaixo devem ser usados, e em qual ordem:
+Sua função é analisar a descrição da tarefa + o conteúdo de anexos (se houver) e decidir, de forma inteligente, quais agentes abaixo devem ser executados, e em qual ordem:
 
-- plan → Criar um planejamento de atividades.
-- code → Gerar códigos, exercícios ou scripts educativos.
-- write → Produzir textos de apoio, conteúdos, artigos.
-- image → Gerar imagens educativas para usar nas atividades.
-- report → Montar um relatório detalhado.
+- plan → Criar um planejamento de aula ou de atividades.
+- code → Gerar códigos, exercícios de programação ou scripts educativos.
+- write → Produzir textos de apoio, artigos ou explicações.
+- image → Gerar imagens educativas baseadas nos temas.
+- report → Criar um relatório final de fechamento.
 
 Regras:
 
-- Se houver menção a "planejar", "plano", "sequência de atividades" → Inclua o agente **plan**.
-- Se houver menção a "código", "script", "programação" → Inclua o agente **code**.
-- Se houver pedido por imagens ou anexos com imagens → Inclua o agente **image**.
-- Se for um pedido por texto longo, artigo ou explicação → Inclua **write**.
-- Se o professor quiser uma análise final ou resumo → Inclua **report**.
-- Você pode incluir vários agentes na ordem que fizer sentido.
-- Responda APENAS com um array JSON simples, exemplo: ["plan", "image", "report"]
+- Se houver termos como "planejar", "plano", "sequência de atividades", use **plan**.
+- Se o usuário pedir exercícios de programação, scripts ou códigos → use **code**.
+- Se houver pedido por imagens ou se o conteúdo anexado for um PDF com imagens → inclua **image**.
+- Se o pedido for um texto longo, artigo, ou conteúdo descritivo → inclua **write**.
+- Se o professor pedir um resumo final ou uma análise → inclua **report**.
 
-Agora analise o conteúdo abaixo:
+⚠️ Importante: Você pode incluir múltiplos agentes, em qualquer ordem lógica.
+
+Formato de resposta esperado (JSON Array apenas, sem textos explicativos):
+
+Exemplos válidos:
+["plan"]
+["plan", "image", "report"]
+["write", "image"]
+
+Agora analise o conteúdo da tarefa + anexos:
 
 {prompt}
 
-Resposta final (somente JSON array):
+Lembre-se: Responda apenas com o JSON Array final.
 """
+
     try:
         response = client.chat.completions.create(
             model=model,
@@ -42,10 +51,10 @@ Resposta final (somente JSON array):
 
         raw_output = response.choices[0].message.content.strip()
 
-        # Garante que a IA respondeu um JSON array válido
+        # Garante que a IA retorne um JSON Array válido
         agents = json.loads(raw_output)
         return agents
 
     except Exception as e:
         print(f"Erro no task_router_agent: {str(e)}")
-        return ["plan"]  # Fallback padrão
+        return ["plan"]  # Fallback: se der erro, pelo menos executa o plan
