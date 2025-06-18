@@ -16,6 +16,7 @@ tasks = {}
 UPLOAD_FOLDER = "uploads"
 model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
+
 async def process_task(task_text, task_id):
     tasks[task_id] = {"status": "processing", "result": None}
 
@@ -25,7 +26,7 @@ async def process_task(task_text, task_id):
         task_type = task_data.get("task_type", "")
         task_id_files = task_data.get("task_id_files", "")
 
-        # 👉 1. Lê o conteúdo dos anexos (se houver)
+        # 👉 1. Ler conteúdo dos anexos (se houver)
         extra_context = ""
         if task_id_files:
             folder_path = os.path.join(UPLOAD_FOLDER, task_id_files)
@@ -43,30 +44,48 @@ async def process_task(task_text, task_id):
         # 👉 2. Monta o prompt final
         final_prompt = f"{task_description}\n\n{extra_context}" if extra_context else task_description
 
-        # 👉 3. Se task_type for informado, força o agente
+        all_results = []
+        agents_to_run = []
+
+        # 👉 3. Se task_type vier, executa só o agente informado
         if task_type:
             result = run_agent_by_type(task_type, final_prompt)
-            tasks[task_id]["result"] = result
-            tasks[task_id]["status"] = "done"
-            return
+            all_results.append(f"Resultado do agente '{task_type}':\n{result}\n\n---\n")
+            agents_to_run = [task_type]
+        else:
+            # 👉 4. Se task_type estiver vazio, deixa a IA decidir
+            agents_to_run = decide_agents(final_prompt)
 
-        # 👉 4. Caso contrário, deixa a IA decidir quais agentes executar
-        agents_to_run = decide_agents(final_prompt)
-
-        all_results = []
-        for agent in agents_to_run:
-            try:
-                agent_result = run_agent_by_type(agent, final_prompt)
-                all_results.append(f"Resultado do agente '{agent}':\n{agent_result}\n\n---\n")
-            except Exception as e:
-                all_results.append(f"[Erro ao rodar o agente {agent}: {str(e)}]")
+            for agent in agents_to_run:
+                try:
+                    agent_result = run_agent_by_type(agent, final_prompt)
+                    all_results.append(f"Resultado do agente '{agent}':\n{agent_result}\n\n---\n")
+                except Exception as e:
+                    all_results.append(f"[Erro ao rodar o agente {agent}: {str(e)}]")
 
         tasks[task_id]["result"] = "\n".join(all_results)
         tasks[task_id]["status"] = "done"
 
+        # 👉 5. Salvar log detalhado
+        save_task_log(
+            task_id=task_id,
+            task_data=task_data,
+            agents_run=agents_to_run,
+            results=tasks[task_id]["result"]
+        )
+
     except Exception as e:
         tasks[task_id]["status"] = "error"
         tasks[task_id]["result"] = f"Erro interno ao processar a task: {str(e)}"
+
+        # 👉 Também salva log mesmo no caso de erro
+        save_task_log(
+            task_id=task_id,
+            task_data=task_data,
+            agents_run=[],
+            results=tasks[task_id]["result"]
+        )
+
 
 def run_agent_by_type(agent_type, prompt_text):
     if agent_type == "plan":
@@ -82,6 +101,7 @@ def run_agent_by_type(agent_type, prompt_text):
     else:
         raise Exception(f"Agente desconhecido: '{agent_type}'")
 
+
 # Upload de arquivo único
 async def save_uploaded_file(file):
     folder_name = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -91,6 +111,7 @@ async def save_uploaded_file(file):
     with open(file_location, "wb") as f:
         f.write(await file.read())
     return {"task_id_files": folder_name, "filename": file.filename, "message": "File uploaded successfully"}
+
 
 # Upload de múltiplos arquivos
 async def save_uploaded_files(files):
@@ -104,3 +125,28 @@ async def save_uploaded_files(files):
             f.write(await file.read())
         saved_files.append(file.filename)
     return {"task_id_files": folder_name, "filenames": saved_files, "message": "Files uploaded successfully"}
+
+
+# 👉 Função de salvar log da task
+def save_task_log(task_id, task_data, agents_run, results):
+    try:
+        logs_folder = os.path.join("app", "task_logs")
+        os.makedirs(logs_folder, exist_ok=True)
+
+        log_file_path = os.path.join(logs_folder, f"task_{task_id}.log")
+
+        log_content = {
+            "task_id": task_id,
+            "task_data": task_data,
+            "agents_executed": agents_run,
+            "results": results,
+            "status": tasks[task_id]["status"]
+        }
+
+        with open(log_file_path, "w", encoding="utf-8") as log_file:
+            json.dump(log_content, log_file, ensure_ascii=False, indent=2)
+
+        print(f"✅ Log salvo: {log_file_path}")
+
+    except Exception as e:
+        print(f"❌ Erro ao salvar log da task {task_id}: {str(e)}")
