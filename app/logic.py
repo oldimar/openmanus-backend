@@ -1,102 +1,84 @@
-import uuid
-import os
+import uuid, os, json
 from dotenv import load_dotenv
 from app.agents.plan_agent import generate_plan
 from app.agents.code_agent import generate_code
-from app.agents.write_agent import generate_text
+from app.agents.write_agent import generate_write
 from app.agents.report_agent import generate_report
 from app.agents.image_agent import generate_image
-from app.task_orchestrator import orchestrate_task
-from PyPDF2 import PdfReader
-from docx import Document
 
 load_dotenv()
 
 tasks = {}
 model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+UPLOAD_FOLDER = "uploads"
 
-
-def get_uploads_for_task(task_id):
-    upload_folder = os.path.join("uploads", task_id)
-    if os.path.exists(upload_folder):
-        return [os.path.join(upload_folder, f) for f in os.listdir(upload_folder)]
-    return []
-
-
-def read_file_content(filepath):
-    ext = os.path.splitext(filepath)[1].lower()
-    try:
-        if ext == ".txt":
-            with open(filepath, "r", encoding="utf-8") as f:
-                return f.read()
-
-        elif ext == ".pdf":
-            text = ""
-            with open(filepath, "rb") as f:
-                reader = PdfReader(f)
-                for page in reader.pages:
-                    text += page.extract_text() or ""
-            return text
-
-        elif ext == ".docx":
-            text = ""
-            doc = Document(filepath)
-            for para in doc.paragraphs:
-                text += para.text + "\n"
-            return text
-
-        else:
-            return f"[Arquivo não suportado: {os.path.basename(filepath)}]"
-
-    except Exception as e:
-        return f"[Erro ao ler {os.path.basename(filepath)}: {str(e)}]"
-
-
-def process_task(task_text, task_id_files=None):
+def process_task(task_text):
     task_id = str(uuid.uuid4())
     tasks[task_id] = {"status": "processing", "result": None}
 
     try:
-        # Se houver arquivos relacionados à task, leia os conteúdos
-        extra_context = ""
-        if task_id_files:
-            upload_folder = os.path.join("uploads", task_id_files)
-            if os.path.exists(upload_folder):
-                file_texts = []
-                for filename in os.listdir(upload_folder):
-                    filepath = os.path.join(upload_folder, filename)
-                    file_texts.append(f"--- Conteúdo de {filename} ---\n")
-                    file_texts.append(read_file_content(filepath))
-                extra_context = "\n\n".join(file_texts)
+        # Tenta converter o campo enviado em JSON
+        task_data = json.loads(task_text) if isinstance(task_text, str) else task_text
 
-        # Junta o prompt do usuário + os conteúdos dos arquivos
-        final_prompt = f"{task_text}\n\n{extra_context}" if extra_context else task_text
+        task_description = task_data.get("task_description", "")
+        task_type = task_data.get("task_type", "")
+        task_id_files = task_data.get("task_id_files", "")
 
-        # Verificar se a task envolve a palavra "planejar" para acionar o orquestrador
-        if "planejar" in task_text.lower():
-            result = orchestrate_task(final_prompt)
+        # 🧠 Lógica simples de orquestração multi-agente (Bloco 3 - Etapa 1):
+        if "planejar" in task_description.lower():
+            plan_result = generate_plan(task_description)
+            code_result = generate_code(plan_result)
+            report_result = generate_report(code_result)
+            write_result = generate_write(report_result)
+            tasks[task_id]["result"] = write_result
+            tasks[task_id]["status"] = "done"
+            return task_id
 
-        # Se não for orquestração, vai para o agente individual
-        elif task_text.lower().startswith("codigo:"):
-            result = generate_code(final_prompt.replace("codigo:", "").strip())
+        # 🖋️ Execução direta de um agente pelo campo task_type
+        if task_type == "plan":
+            result = generate_plan(task_description)
+        elif task_type == "code":
+            result = generate_code(task_description)
+        elif task_type == "write":
+            # Se task_id_files for informado, tente buscar o conteúdo dos arquivos
+            if task_id_files:
+                folder_path = os.path.join(UPLOAD_FOLDER, task_id_files)
+                try:
+                    file_contents = []
+                    for filename in os.listdir(folder_path):
+                        file_path = os.path.join(folder_path, filename)
+                        with open(file_path, "r", encoding="utf-8") as f:
+                            file_contents.append(f.read())
 
-        elif task_text.lower().startswith("texto:"):
-            result = generate_text(final_prompt.replace("texto:", "").strip())
+                    combined_text = "\n\n".join(file_contents)
+                    result = generate_write(combined_text)
 
-        elif task_text.lower().startswith("relatorio:"):
-            result = generate_report(final_prompt.replace("relatorio:", "").strip())
+                except FileNotFoundError:
+                    tasks[task_id]["status"] = "error"
+                    tasks[task_id]["result"] = f"Erro: Pasta '{folder_path}' não encontrada."
+                    return task_id
+                except Exception as e:
+                    tasks[task_id]["status"] = "error"
+                    tasks[task_id]["result"] = f"Erro ao ler arquivos: {str(e)}"
+                    return task_id
 
-        elif task_text.lower().startswith("imagem:"):
-            result = generate_image(final_prompt.replace("imagem:", "").strip())
+            else:
+                result = generate_write(task_description)
 
+        elif task_type == "report":
+            result = generate_report(task_description)
+        elif task_type == "image":
+            result = generate_image(task_description)
         else:
-            result = generate_plan(final_prompt)
+            tasks[task_id]["status"] = "error"
+            tasks[task_id]["result"] = f"Erro: task_type '{task_type}' não reconhecido."
+            return task_id
 
-        tasks[task_id]["status"] = "done"
         tasks[task_id]["result"] = result
+        tasks[task_id]["status"] = "done"
 
     except Exception as e:
         tasks[task_id]["status"] = "error"
-        tasks[task_id]["result"] = f"Erro: {str(e)}"
+        tasks[task_id]["result"] = f"Erro interno ao processar a task: {str(e)}"
 
     return task_id
