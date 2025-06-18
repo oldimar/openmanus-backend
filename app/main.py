@@ -1,12 +1,15 @@
-from fastapi import FastAPI, UploadFile, File
-from typing import List
-import os
+from fastapi import FastAPI, UploadFile, File, Body
 from app.logic import process_task, tasks
+import os
+from datetime import datetime
+import shutil
 
 app = FastAPI()
 
+UPLOAD_FOLDER = "uploads"
+
 @app.post("/tasks/")
-async def create_task(task_text: str):
+async def create_task(task_text: dict = Body(...)):
     task_id = process_task(task_text)
     return {"task_id": task_id, "status": tasks[task_id]["status"]}
 
@@ -18,18 +21,26 @@ def get_task_status(task_id: str):
     return {"error": "Task ID not found"}
 
 @app.post("/uploadfile/")
-async def upload_file(files: List[UploadFile] = File(...)):
-    os.makedirs("uploads", exist_ok=True)
-    saved_files = []
-
+async def upload_file(files: list[UploadFile] = File(...)):
     try:
-        for file in files:
-            file_location = f"uploads/{file.filename}"
-            with open(file_location, "wb") as f:
-                f.write(await file.read())
-            saved_files.append(file_location)
+        # Criar pasta com timestamp como task_id_files
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        folder_path = os.path.join(UPLOAD_FOLDER, timestamp)
+        os.makedirs(folder_path, exist_ok=True)
 
-        return {"filenames": [file.filename for file in files], "message": "Files uploaded successfully"}
+        filenames = []
+
+        for file in files:
+            file_location = os.path.join(folder_path, file.filename)
+            with open(file_location, "wb") as f:
+                shutil.copyfileobj(file.file, f)
+            filenames.append(file.filename)
+
+        return {
+            "task_id_files": timestamp,
+            "filenames": filenames,
+            "message": "Files uploaded successfully"
+        }
 
     except Exception as e:
         return {"error": str(e)}
