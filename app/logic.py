@@ -9,6 +9,7 @@ from app.agents.write_agent import generate_text
 from app.agents.report_agent import generate_report
 from app.agents.image_agent import generate_image
 from app.agents.task_router_agent import decide_agents
+from app.ocr_reader import extract_text_from_pdf
 
 load_dotenv()
 
@@ -26,36 +27,32 @@ async def process_task(task_text, task_id):
         task_type = task_data.get("task_type", "")
         task_id_files = task_data.get("task_id_files", "")
 
-        from app.ocr_reader import extract_text_from_pdf
+        # 👉 1. Ler conteúdo dos anexos (OCR de PDF + TXT puro)
+        extra_context = ""
+        if task_id_files:
+            folder_path = os.path.join(UPLOAD_FOLDER, task_id_files)
+            if os.path.exists(folder_path):
+                file_contents = []
 
-from app.ocr_reader import extract_text_from_pdf
-
-# 👉 1. Ler conteúdo dos anexos (OCR de PDF + TXT puro)
-extra_context = ""
-if task_id_files:
-    folder_path = os.path.join(UPLOAD_FOLDER, task_id_files)
-    if os.path.exists(folder_path):
-        file_contents = []
-
-        # OCR de PDFs
-        try:
-            pdf_text = extract_text_from_pdf(task_id_files)
-            if pdf_text and "Nenhum PDF" not in pdf_text:
-                file_contents.append(pdf_text)
-        except Exception as e:
-            file_contents.append(f"[Erro ao extrair texto de PDF: {str(e)}]")
-
-        # Leitura de arquivos TXT
-        for filename in os.listdir(folder_path):
-            if filename.lower().endswith(".txt"):
-                file_path = os.path.join(folder_path, filename)
+                # OCR de PDFs
                 try:
-                    with open(file_path, "r", encoding="utf-8") as f:
-                        file_contents.append(f.read())
+                    pdf_text = extract_text_from_pdf(task_id_files)
+                    if pdf_text and "Nenhum PDF" not in pdf_text:
+                        file_contents.append(pdf_text)
                 except Exception as e:
-                    file_contents.append(f"[Erro ao ler {filename}: {str(e)}]")
+                    file_contents.append(f"[Erro ao extrair texto de PDF: {str(e)}]")
 
-        extra_context = "\n\n".join(file_contents)
+                # Leitura de arquivos TXT
+                for filename in os.listdir(folder_path):
+                    if filename.lower().endswith(".txt"):
+                        file_path = os.path.join(folder_path, filename)
+                        try:
+                            with open(file_path, "r", encoding="utf-8") as f:
+                                file_contents.append(f.read())
+                        except Exception as e:
+                            file_contents.append(f"[Erro ao ler {filename}: {str(e)}]")
+
+                extra_context = "\n\n".join(file_contents)
 
         # 👉 2. Monta o prompt final
         final_prompt = f"{task_description}\n\n{extra_context}" if extra_context else task_description
