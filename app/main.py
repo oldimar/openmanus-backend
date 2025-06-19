@@ -48,3 +48,48 @@ async def upload_files(files: list[UploadFile] = File(...)):
         return await save_uploaded_files(files)
     except Exception as e:
         return {"error": str(e)}
+
+from fastapi.responses import FileResponse
+from app.docx_generator import generate_docx
+import os
+
+EXPORT_FOLDER = "exports"
+
+@app.get("/generate-docx/{task_id}")
+async def generate_task_docx(task_id: str):
+    try:
+        # Verifica se a task existe
+        task = tasks.get(task_id)
+        if not task:
+            raise HTTPException(status_code=404, detail="Task ID not found")
+
+        # Busca task result e description
+        task_result = task["result"]
+        task_description = task.get("description", "")
+
+        # Verifica se tem pasta de arquivos (opcional - ajuste conforme sua lógica de upload)
+        task_data_folder = None
+        # Exemplo: Se você estiver salvando o task_id_files dentro da task:
+        # task_data_folder = task.get("task_id_files", "")
+
+        # Gera o DOCX
+        output_path = generate_docx(
+            task_id=task_id,
+            task_result=task_result,
+            task_description=task_description,
+            file_folder=task_data_folder
+        )
+
+        # Retorna o arquivo para download
+        if os.path.exists(output_path):
+            filename = os.path.basename(output_path)
+            return FileResponse(
+                path=output_path,
+                filename=filename,
+                media_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            )
+        else:
+            raise HTTPException(status_code=500, detail="Falha ao gerar o DOCX.")
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao gerar DOCX: {str(e)}")
