@@ -93,25 +93,3 @@ async def generate_task_docx(task_id: str):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao gerar DOCX: {str(e)}")
-
-from fastapi.responses import FileResponse
-import os
-
-EXPORT_FOLDER = "exports"
-
-@app.get("/download/{task_id}")
-async def download_docx(task_id: str):
-    try:
-        file_path = os.path.join(EXPORT_FOLDER, f"{task_id}.docx")
-        if os.path.exists(file_path):
-            filename = f"resultado_{task_id}.docx"
-            return FileResponse(
-                path=file_path,
-                filename=filename,
-                media_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-            )
-        else:
-            raise HTTPException(status_code=404, detail="Arquivo DOCX não encontrado para essa task.")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao fazer download: {str(e)}")
-
