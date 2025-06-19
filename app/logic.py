@@ -49,9 +49,12 @@ async def process_task(task_text, task_id):
 
         # 👉 3. Se task_type vier, executa só o agente informado
         if task_type:
-            result = run_agent_by_type(task_type, final_prompt)
-            all_results.append(f"Resultado do agente '{task_type}':\n{result}\n\n---\n")
-            agents_to_run = [task_type]
+            try:
+                result = run_agent_by_type(task_type, final_prompt)
+                all_results.append(f"Resultado do agente '{task_type}':\n{result}\n\n---\n")
+                agents_to_run = [task_type]
+            except Exception as e:
+                all_results.append(f"[Erro ao rodar o agente '{task_type}': {str(e)}]")
         else:
             # 👉 4. Se task_type estiver vazio, deixa a IA decidir
             agents_to_run = decide_agents(final_prompt)
@@ -61,12 +64,19 @@ async def process_task(task_text, task_id):
                     agent_result = run_agent_by_type(agent, final_prompt)
                     all_results.append(f"Resultado do agente '{agent}':\n{agent_result}\n\n---\n")
                 except Exception as e:
-                    all_results.append(f"[Erro ao rodar o agente {agent}: {str(e)}]")
+                    all_results.append(f"[Erro ao rodar o agente '{agent}': {str(e)}]")
 
-        tasks[task_id]["result"] = "\n".join(all_results)
-        tasks[task_id]["status"] = "done"
+        full_result = "\n".join(all_results)
 
-        # 👉 5. Salvar log detalhado
+        # 👉 5. Validação para evitar salvar como done se o resultado estiver vazio ou None
+        if full_result is None or full_result.strip() == "":
+            tasks[task_id]["status"] = "error"
+            tasks[task_id]["result"] = "Erro: Nenhum resultado foi gerado por nenhum agente."
+        else:
+            tasks[task_id]["result"] = full_result
+            tasks[task_id]["status"] = "done"
+
+        # 👉 6. Salvar log detalhado
         save_task_log(
             task_id=task_id,
             task_data=task_data,
@@ -85,6 +95,8 @@ async def process_task(task_text, task_id):
             agents_run=[],
             results=tasks[task_id]["result"]
         )
+
+    return tasks[task_id]["result"]
 
 
 def run_agent_by_type(agent_type, prompt_text):
