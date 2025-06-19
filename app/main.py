@@ -75,6 +75,17 @@ async def upload_multiple_files(files: list[UploadFile] = File(...)):
         }
     except Exception as e:
         return {"error": str(e)}
+        
+from app.ocr_reader import extract_text_from_pdf
+
+@app.get("/extract-pdf-text/{task_id_files}")
+async def extract_pdf_text(task_id_files: str):
+    try:
+        extracted_text = extract_text_from_pdf(task_id_files)
+        return {"task_id_files": task_id_files, "extracted_text": extracted_text}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao extrair texto: {str(e)}")
+
 
 # ✅ Rota 5: Gerar DOCX a partir do resultado de uma task
 @app.get("/generate-docx/{task_id}")
