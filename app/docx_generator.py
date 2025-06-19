@@ -8,12 +8,12 @@ UPLOAD_FOLDER = "uploads"
 DOCX_FOLDER = "generated_docs"
 
 def generate_docx_from_result(task_id, task_result):
-    # Cria pasta se não existir
+    # Garante que a pasta de saída existe
     os.makedirs(DOCX_FOLDER, exist_ok=True)
 
     doc = Document()
 
-    # Estilo da fonte padrão
+    # Estilo de fonte padrão
     style = doc.styles['Normal']
     font = style.font
     font.name = 'Arial'
@@ -23,27 +23,25 @@ def generate_docx_from_result(task_id, task_result):
     for line in lines:
         line = line.strip()
 
-        # Ignorar linhas vazias
+        # Ignora linhas vazias
         if not line:
             continue
 
-        # Título H1
+        # Títulos H1, H2, H3 (estilo Markdown)
         if line.startswith("# "):
             doc.add_heading(line[2:].strip(), level=1)
 
-        # Título H2
         elif line.startswith("## "):
             doc.add_heading(line[3:].strip(), level=2)
 
-        # Título H3
         elif line.startswith("### "):
             doc.add_heading(line[4:].strip(), level=3)
 
-        # Lista (bullets)
+        # Listas com bullet
         elif line.startswith("- ") or line.startswith("* "):
             doc.add_paragraph(line[2:].strip(), style='List Bullet')
 
-        # Negrito simples dentro de um parágrafo
+        # Negrito (estilo Markdown: **texto**)
         elif "**" in line:
             paragraph = doc.add_paragraph()
             parts = re.split(r'(\*\*.*?\*\*)', line)
@@ -55,10 +53,11 @@ def generate_docx_from_result(task_id, task_result):
                 else:
                     run.text = part
 
+        # Qualquer outro texto comum
         else:
             doc.add_paragraph(line)
 
-    # Salvar arquivo
+    # Salva o DOCX
     output_path = os.path.join(DOCX_FOLDER, f"{task_id}.docx")
     doc.save(output_path)
     return output_path
