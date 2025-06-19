@@ -5,7 +5,7 @@ from openai import OpenAI
 client = OpenAI()
 
 def decide_agents(prompt: str, model: str = "gpt-4o-mini") -> list:
-    system_prompt = """
+    system_prompt = f"""
 Você é um orquestrador de tarefas para um sistema de IA educacional.
 
 Sua função é analisar a descrição da tarefa + o conteúdo de anexos (se houver) e decidir, de forma inteligente, quais agentes abaixo devem ser executados, e em qual ordem:
@@ -45,16 +45,22 @@ Lembre-se: Responda apenas com o JSON Array final.
             model=model,
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": prompt or "Tarefa vazia."}
             ]
         )
 
         raw_output = response.choices[0].message.content.strip()
 
-        # Garante que a IA retorne um JSON Array válido
+        # Valida se o retorno é um JSON Array
         agents = json.loads(raw_output)
+
+        # Se por algum motivo não for uma lista, força fallback
+        if not isinstance(agents, list):
+            raise ValueError("Resposta da IA não é uma lista JSON válida.")
+
         return agents
 
     except Exception as e:
         print(f"Erro no task_router_agent: {str(e)}")
-        return ["plan"]  # Fallback: se der erro, pelo menos executa o plan
+        # Fallback de segurança
+        return ["plan"]
