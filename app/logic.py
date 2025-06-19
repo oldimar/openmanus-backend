@@ -28,6 +28,8 @@ async def process_task(task_text, task_id):
 
         from app.ocr_reader import extract_text_from_pdf
 
+from app.ocr_reader import extract_text_from_pdf
+
 # 👉 1. Ler conteúdo dos anexos (OCR de PDF + TXT puro)
 extra_context = ""
 if task_id_files:
@@ -43,7 +45,7 @@ if task_id_files:
         except Exception as e:
             file_contents.append(f"[Erro ao extrair texto de PDF: {str(e)}]")
 
-        # Leitura de outros arquivos TXT simples
+        # Leitura de arquivos TXT
         for filename in os.listdir(folder_path):
             if filename.lower().endswith(".txt"):
                 file_path = os.path.join(folder_path, filename)
