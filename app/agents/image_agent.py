@@ -8,7 +8,7 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 def generate_image(task_description: str) -> str:
     try:
         response = client.images.generate(
-            model="dall-e-3",
+            model="dall-e-2",  # ✅ Corrigido
             prompt=task_description,
             size="1024x1024",
             quality="standard",
