@@ -29,6 +29,7 @@ def generate_docx_from_result(task_id, task_result):
 
     doc = Document()
 
+    # Estilo padrão da fonte
     style = doc.styles['Normal']
     font = style.font
     font.name = 'Arial'
@@ -38,19 +39,42 @@ def generate_docx_from_result(task_id, task_result):
     for line in lines:
         line = line.strip()
         if not line:
+            doc.add_paragraph()  # Adiciona uma linha em branco real entre os blocos
             continue
 
         # Cabeçalhos
         if line.startswith("# "):
-            doc.add_heading(line[2:].strip(), level=1)
+            heading = doc.add_heading(line[2:].strip(), level=1)
+            heading.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
         elif line.startswith("## "):
-            doc.add_heading(line[3:].strip(), level=2)
+            heading = doc.add_heading(line[3:].strip(), level=2)
+            heading.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
         elif line.startswith("### "):
-            doc.add_heading(line[4:].strip(), level=3)
-        # Lista com bullet
+            heading = doc.add_heading(line[4:].strip(), level=3)
+            heading.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+
+        # Listas com espaçamento
         elif line.startswith("- ") or line.startswith("* "):
-            doc.add_paragraph(line[2:].strip(), style='List Bullet')
-        # Negrito simples com **texto**
+            para = doc.add_paragraph(line[2:].strip(), style='List Bullet')
+            para.paragraph_format.space_after = Pt(6)
+
+        # Imagens via URL Markdown ![](url)
+        elif re.match(r'!\[.*\]\(http.*\)', line):
+            match = re.match(r'!\[(.*?)\]\((http.*?)\)', line)
+            if match:
+                alt_text = match.group(1)
+                image_url = match.group(2)
+                image_filename = os.path.join(temp_image_folder, os.path.basename(image_url).split("?")[0])
+                if download_image(image_url, image_filename):
+                    try:
+                        doc.add_picture(image_filename, width=Inches(5))
+                        last_paragraph = doc.paragraphs[-1]
+                        last_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+                        doc.add_paragraph(alt_text).alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+                    except Exception as e:
+                        doc.add_paragraph(f"[Erro ao adicionar imagem: {str(e)}]")
+
+        # Negrito real: **texto**
         elif "**" in line:
             paragraph = doc.add_paragraph()
             parts = re.split(r'(\*\*.*?\*\*)', line)
@@ -61,23 +85,12 @@ def generate_docx_from_result(task_id, task_result):
                     run.bold = True
                 else:
                     run.text = part
-        # Imagem remota Markdown ![descrição](url)
-        elif re.match(r'!\[.*\]\(http.*\)', line):
-            match = re.match(r'!\[(.*?)\]\((http.*?)\)', line)
-            if match:
-                alt_text = match.group(1)
-                image_url = match.group(2)
-                image_filename = os.path.join(temp_image_folder, os.path.basename(image_url).split("?")[0])
-                if download_image(image_url, image_filename):
-                    try:
-                        doc.add_picture(image_filename, width=Inches(4))
-                        last_paragraph = doc.paragraphs[-1]
-                        last_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-                        doc.add_paragraph(alt_text).alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-                    except Exception as e:
-                        print(f"Erro ao adicionar imagem ao DOCX: {str(e)}")
+            paragraph.paragraph_format.space_after = Pt(8)
+
+        # Texto comum
         else:
-            doc.add_paragraph(line)
+            para = doc.add_paragraph(line)
+            para.paragraph_format.space_after = Pt(8)
 
     output_path = os.path.join(DOCX_FOLDER, f"{task_id}.docx")
     doc.save(output_path)
