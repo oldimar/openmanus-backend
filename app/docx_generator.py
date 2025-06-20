@@ -36,16 +36,17 @@ def generate_docx_from_result(task_id, task_result):
     doc.add_paragraph(f'Data de geração: {datetime.now().strftime("%d/%m/%Y %H:%M")}').alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
     doc.add_page_break()
 
-    # ✅ SUMÁRIO
+    # ✅ SUMÁRIO (Texto Estático para evitar erro)
     doc.add_heading('Sumário', level=1)
-    doc.add_paragraph('⚠️ No Word Desktop: clique com o botão direito aqui e selecione "Atualizar campo" para visualizar o sumário automático.')
-    doc.add_paragraph()._p.addnext(doc.part.element.xpath('//w:body')[0].makeelement(
-        '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}fldSimple',
-        {'w:instr': 'TOC \\o "1-3" \\h \\z \\u'}
-    ))
+    doc.add_paragraph('Este é um sumário estático. Para gerar um sumário real, atualize manualmente dentro do Word Desktop.')
+    doc.add_paragraph('- Plano de Aula')
+    doc.add_paragraph('- Código Gerado')
+    doc.add_paragraph('- Texto Produzido')
+    doc.add_paragraph('- Imagens Geradas')
+    doc.add_paragraph('- Relatório Final')
     doc.add_page_break()
 
-    # ✅ Processamento de conteúdo da task
+    # ✅ Conteúdo da task
     lines = task_result.split("\n")
     current_section = None
 
@@ -55,11 +56,10 @@ def generate_docx_from_result(task_id, task_result):
             doc.add_paragraph()
             continue
 
-        # Detectar início de blocos de agentes
+        # Seção de cada agente
         match_agent = re.match(r"Resultado do agente '(.*?)':", line)
         if match_agent:
             agent_name = match_agent.group(1)
-
             section_title = {
                 "plan": "Plano de Aula",
                 "code": "Código Gerado",
@@ -73,7 +73,7 @@ def generate_docx_from_result(task_id, task_result):
             current_section = agent_name
             continue
 
-        # Cabeçalhos internos
+        # Cabeçalhos
         if line.startswith("# "):
             doc.add_heading(line[2:].strip(), level=2)
         elif line.startswith("## "):
@@ -81,7 +81,7 @@ def generate_docx_from_result(task_id, task_result):
         elif line.startswith("### "):
             doc.add_heading(line[4:].strip(), level=4)
 
-        # Listas
+        # Lista
         elif line.startswith("- ") or line.startswith("* "):
             para = doc.add_paragraph(line[2:].strip(), style='List Bullet')
             para.paragraph_format.space_after = Pt(6)
@@ -101,7 +101,7 @@ def generate_docx_from_result(task_id, task_result):
                     except Exception as e:
                         doc.add_paragraph(f"[Erro ao adicionar imagem markdown: {str(e)}]")
 
-        # URLs diretas de imagem
+        # URLs de imagem diretas
         elif re.match(r'^https?://.*\.(png|jpg|jpeg)', line, re.IGNORECASE):
             image_url = line
             image_filename = os.path.join(temp_image_folder, os.path.basename(image_url).split("?")[0])
