@@ -8,10 +8,9 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 def generate_image(task_description: str) -> str:
     try:
         response = client.images.generate(
-            model="dall-e-2",  # ✅ Corrigido
+            model="dall-e-3",
             prompt=task_description,
             size="1024x1024",
-            quality="standard",
             n=1
         )
         image_url = response.data[0].url
