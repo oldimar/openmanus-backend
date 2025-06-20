@@ -1,6 +1,6 @@
 from docx import Document
-from docx.shared import Pt, Inches
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+from docx.shared import Pt, Inches
 import os
 import re
 import requests
@@ -24,9 +24,11 @@ def download_image(url, save_path):
 
 def generate_docx_from_result(task_id, task_result):
     os.makedirs(DOCX_FOLDER, exist_ok=True)
+    temp_image_folder = os.path.join(DOCX_FOLDER, f"images_{task_id}")
+    os.makedirs(temp_image_folder, exist_ok=True)
+
     doc = Document()
 
-    # Estilo de fonte padrão
     style = doc.styles['Normal']
     font = style.font
     font.name = 'Arial'
@@ -38,32 +40,17 @@ def generate_docx_from_result(task_id, task_result):
         if not line:
             continue
 
-        # Títulos
+        # Cabeçalhos
         if line.startswith("# "):
             doc.add_heading(line[2:].strip(), level=1)
         elif line.startswith("## "):
             doc.add_heading(line[3:].strip(), level=2)
         elif line.startswith("### "):
             doc.add_heading(line[4:].strip(), level=3)
-
-        # Listas
+        # Lista com bullet
         elif line.startswith("- ") or line.startswith("* "):
             doc.add_paragraph(line[2:].strip(), style='List Bullet')
-
-        # Imagens: Se a linha for uma URL de imagem (ex: https://...png ou jpg)
-        elif re.match(r'^https?://.*\.(png|jpg|jpeg)$', line, re.IGNORECASE):
-            try:
-                image_filename = f"{task_id}_{os.path.basename(line)}"
-                local_image_path = os.path.join(DOCX_FOLDER, image_filename)
-
-                if download_image(line, local_image_path):
-                    doc.add_picture(local_image_path, width=Inches(5))
-                    last_paragraph = doc.paragraphs[-1]
-                    last_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-            except Exception as e:
-                doc.add_paragraph(f"[Erro ao inserir imagem: {str(e)}]")
-
-        # Negritos inline (**texto**)
+        # Negrito simples com **texto**
         elif "**" in line:
             paragraph = doc.add_paragraph()
             parts = re.split(r'(\*\*.*?\*\*)', line)
@@ -74,8 +61,21 @@ def generate_docx_from_result(task_id, task_result):
                     run.bold = True
                 else:
                     run.text = part
-
-        # Texto comum
+        # Imagem remota Markdown ![descrição](url)
+        elif re.match(r'!\[.*\]\(http.*\)', line):
+            match = re.match(r'!\[(.*?)\]\((http.*?)\)', line)
+            if match:
+                alt_text = match.group(1)
+                image_url = match.group(2)
+                image_filename = os.path.join(temp_image_folder, os.path.basename(image_url).split("?")[0])
+                if download_image(image_url, image_filename):
+                    try:
+                        doc.add_picture(image_filename, width=Inches(4))
+                        last_paragraph = doc.paragraphs[-1]
+                        last_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+                        doc.add_paragraph(alt_text).alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+                    except Exception as e:
+                        print(f"Erro ao adicionar imagem ao DOCX: {str(e)}")
         else:
             doc.add_paragraph(line)
 
