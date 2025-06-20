@@ -4,6 +4,7 @@ from docx.shared import Pt, Inches
 import os
 import re
 import requests
+from datetime import datetime
 
 UPLOAD_FOLDER = "uploads"
 DOCX_FOLDER = "generated_docs"
@@ -29,36 +30,63 @@ def generate_docx_from_result(task_id, task_result):
 
     doc = Document()
 
-    # Estilo da fonte padrão
-    style = doc.styles['Normal']
-    font = style.font
-    font.name = 'Arial'
-    font.size = Pt(11)
+    # ✅ CAPA
+    doc.add_heading('Relatório de Atividades Gerado pela IA', level=0).alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+    doc.add_paragraph(f'Task ID: {task_id}').alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+    doc.add_paragraph(f'Data de geração: {datetime.now().strftime("%d/%m/%Y %H:%M")}').alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+    doc.add_page_break()
 
+    # ✅ SUMÁRIO
+    doc.add_heading('Sumário', level=1)
+    doc.add_paragraph('⚠️ No Word Desktop: clique com o botão direito aqui e selecione "Atualizar campo" para visualizar o sumário automático.')
+    doc.add_paragraph()._p.addnext(doc.part.element.xpath('//w:body')[0].makeelement(
+        '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}fldSimple',
+        {'w:instr': 'TOC \\o "1-3" \\h \\z \\u'}
+    ))
+    doc.add_page_break()
+
+    # ✅ Processamento de conteúdo da task
     lines = task_result.split("\n")
+    current_section = None
+
     for line in lines:
         line = line.strip()
         if not line:
             doc.add_paragraph()
             continue
 
-        # Cabeçalhos
+        # Detectar início de blocos de agentes
+        match_agent = re.match(r"Resultado do agente '(.*?)':", line)
+        if match_agent:
+            agent_name = match_agent.group(1)
+
+            section_title = {
+                "plan": "Plano de Aula",
+                "code": "Código Gerado",
+                "write": "Texto Produzido",
+                "image": "Imagens Geradas",
+                "report": "Relatório Final"
+            }.get(agent_name, f"Agente: {agent_name}")
+
+            doc.add_page_break()
+            doc.add_heading(section_title, level=1)
+            current_section = agent_name
+            continue
+
+        # Cabeçalhos internos
         if line.startswith("# "):
-            heading = doc.add_heading(line[2:].strip(), level=1)
-            heading.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+            doc.add_heading(line[2:].strip(), level=2)
         elif line.startswith("## "):
-            heading = doc.add_heading(line[3:].strip(), level=2)
-            heading.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+            doc.add_heading(line[3:].strip(), level=3)
         elif line.startswith("### "):
-            heading = doc.add_heading(line[4:].strip(), level=3)
-            heading.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+            doc.add_heading(line[4:].strip(), level=4)
 
         # Listas
         elif line.startswith("- ") or line.startswith("* "):
             para = doc.add_paragraph(line[2:].strip(), style='List Bullet')
             para.paragraph_format.space_after = Pt(6)
 
-        # Imagens via Markdown ![](url)
+        # Imagens Markdown
         elif re.match(r'!\[.*\]\(http.*\)', line):
             match = re.match(r'!\[(.*?)\]\((http.*?)\)', line)
             if match:
@@ -73,7 +101,7 @@ def generate_docx_from_result(task_id, task_result):
                     except Exception as e:
                         doc.add_paragraph(f"[Erro ao adicionar imagem markdown: {str(e)}]")
 
-        # URLs diretas de imagem (http...png, jpg, jpeg, etc)
+        # URLs diretas de imagem
         elif re.match(r'^https?://.*\.(png|jpg|jpeg)', line, re.IGNORECASE):
             image_url = line
             image_filename = os.path.join(temp_image_folder, os.path.basename(image_url).split("?")[0])
@@ -84,7 +112,7 @@ def generate_docx_from_result(task_id, task_result):
                 except Exception as e:
                     doc.add_paragraph(f"[Erro ao adicionar imagem direta: {str(e)}]")
 
-        # Negrito real
+        # Negrito
         elif "**" in line:
             paragraph = doc.add_paragraph()
             parts = re.split(r'(\*\*.*?\*\*)', line)
@@ -97,7 +125,7 @@ def generate_docx_from_result(task_id, task_result):
                     run.text = part
             paragraph.paragraph_format.space_after = Pt(8)
 
-        # Texto comum
+        # Texto normal
         else:
             para = doc.add_paragraph(line)
             para.paragraph_format.space_after = Pt(8)
