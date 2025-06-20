@@ -29,7 +29,7 @@ def generate_docx_from_result(task_id, task_result):
 
     doc = Document()
 
-    # Estilo padrão da fonte
+    # Estilo da fonte padrão
     style = doc.styles['Normal']
     font = style.font
     font.name = 'Arial'
@@ -39,7 +39,7 @@ def generate_docx_from_result(task_id, task_result):
     for line in lines:
         line = line.strip()
         if not line:
-            doc.add_paragraph()  # Adiciona uma linha em branco real entre os blocos
+            doc.add_paragraph()
             continue
 
         # Cabeçalhos
@@ -53,12 +53,12 @@ def generate_docx_from_result(task_id, task_result):
             heading = doc.add_heading(line[4:].strip(), level=3)
             heading.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
 
-        # Listas com espaçamento
+        # Listas
         elif line.startswith("- ") or line.startswith("* "):
             para = doc.add_paragraph(line[2:].strip(), style='List Bullet')
             para.paragraph_format.space_after = Pt(6)
 
-        # Imagens via URL Markdown ![](url)
+        # Imagens via Markdown ![](url)
         elif re.match(r'!\[.*\]\(http.*\)', line):
             match = re.match(r'!\[(.*?)\]\((http.*?)\)', line)
             if match:
@@ -68,13 +68,23 @@ def generate_docx_from_result(task_id, task_result):
                 if download_image(image_url, image_filename):
                     try:
                         doc.add_picture(image_filename, width=Inches(5))
-                        last_paragraph = doc.paragraphs[-1]
-                        last_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+                        doc.paragraphs[-1].alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
                         doc.add_paragraph(alt_text).alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
                     except Exception as e:
-                        doc.add_paragraph(f"[Erro ao adicionar imagem: {str(e)}]")
+                        doc.add_paragraph(f"[Erro ao adicionar imagem markdown: {str(e)}]")
 
-        # Negrito real: **texto**
+        # URLs diretas de imagem (http...png, jpg, jpeg, etc)
+        elif re.match(r'^https?://.*\.(png|jpg|jpeg)', line, re.IGNORECASE):
+            image_url = line
+            image_filename = os.path.join(temp_image_folder, os.path.basename(image_url).split("?")[0])
+            if download_image(image_url, image_filename):
+                try:
+                    doc.add_picture(image_filename, width=Inches(5))
+                    doc.paragraphs[-1].alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+                except Exception as e:
+                    doc.add_paragraph(f"[Erro ao adicionar imagem direta: {str(e)}]")
+
+        # Negrito real
         elif "**" in line:
             paragraph = doc.add_paragraph()
             parts = re.split(r'(\*\*.*?\*\*)', line)
