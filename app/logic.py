@@ -90,7 +90,7 @@ async def process_task(task_text, task_id):
         atividades = parse_task_output_into_structured_data(all_results, agents_to_run)
 
         # ✅ Adiciona imagens
-        atividades_com_imagem = await associate_images_to_activities(atividades)
+        atividades_com_imagem = associate_images_to_activities(atividades)
 
         # ✅ Gera saída formatada (para DOCX e exibição)
         formatted_result = format_task_output_as_worksheet(task_id, atividades_com_imagem, agents_to_run)
