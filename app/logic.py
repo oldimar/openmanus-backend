@@ -10,7 +10,8 @@ from app.agents.report_agent import generate_report
 from app.agents.image_agent import generate_image
 from app.agents.task_router_agent import decide_agents
 from app.ocr_reader import extract_text_from_pdf
-from app.formatters import format_task_output_as_worksheet  # 🆕 IMPORTAÇÃO
+from app.formatters import format_task_output_as_worksheet
+from app.image_mapper import associate_images_to_activities  # ✅ NOVO
 
 load_dotenv()
 
@@ -80,13 +81,31 @@ async def process_task(task_text, task_id):
             tasks[task_id]["status"] = "error"
             tasks[task_id]["result"] = "Erro: Nenhum resultado foi gerado por nenhum agente."
         else:
-            tasks[task_id]["result"] = full_result
-            # 🆕 NOVO CAMPO formatado
+            # 🔽 Aqui você pode converter para atividades
+            atividades = []
+            for raw in all_results:
+                partes = [p.strip() for p in raw.split("\n\n") if p.strip()]
+                for p in partes:
+                    atividades.append({
+                        "texto": p,
+                        "opcoes": [
+                            "(    ) OPÇÃO A",
+                            "(    ) OPÇÃO B",
+                            "(    ) OPÇÃO C",
+                            "(    ) OPÇÃO D"
+                        ]
+                    })
+
+            atividades = associate_images_to_activities(atividades, max_com_imagem=4)
+
+            # Salva resultado formatado
             tasks[task_id]["structured_result"] = format_task_output_as_worksheet(
                 task_id=task_id,
-                all_results=all_results,
+                all_results=atividades,  # agora são objetos, não apenas strings
                 agents_run=agents_to_run
             )
+
+            tasks[task_id]["result"] = full_result
             tasks[task_id]["status"] = "done"
 
         save_task_log(
