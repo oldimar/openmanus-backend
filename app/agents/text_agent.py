@@ -1,7 +1,7 @@
 import os
-import openai
+from openai import OpenAI
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
 def extract_activity_theme(texto: str) -> str:
@@ -18,18 +18,20 @@ Atividade:
 Tema:"""
 
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-4o",
-            messages=[
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=10,
-            temperature=0.2
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2,
+            max_tokens=10
         )
 
-        tema = response["choices"][0]["message"]["content"]
-        return tema.strip().lower()
+        tema = response.choices[0].message.content.strip().lower()
+
+        if tema in ["", "tema", "null", "none"]:
+            raise ValueError("Tema inválido gerado pela IA")
+
+        return tema
 
     except Exception as e:
         print(f"[IA] Erro ao extrair tema da atividade: {e}")
-        return "tema"
+        return "educação"  # fallback seguro
