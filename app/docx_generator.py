@@ -11,7 +11,10 @@ DOCX_FOLDER = "generated_docs"
 
 def download_image(url, save_path):
     try:
-        response = requests.get(url)
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+        }
+        response = requests.get(url, headers=headers)
         if response.status_code == 200:
             with open(save_path, "wb") as f:
                 f.write(response.content)
