@@ -1,12 +1,20 @@
-from openai import OpenAI
 import os
 import requests
 import urllib.parse
+from openai import OpenAI
+from dotenv import load_dotenv
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY") or ""
+# 🟢 Recarrega variáveis locais, sem atrapalhar Railway (ajuda no dev e no fallback)
+load_dotenv()
 
-# ✅ Apenas em ambientes locais essa verificação ajuda
+# ✅ Pega da variável de ambiente (Railway ou local)
+PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+# 🔐 Cliente OpenAI
+client = OpenAI(api_key=OPENAI_API_KEY)
+
+# ✅ Verificação clara de problema de ambiente
 if not PIXABAY_API_KEY:
     print("[ERRO] Chave da API do Pixabay não foi carregada!")
 else:
