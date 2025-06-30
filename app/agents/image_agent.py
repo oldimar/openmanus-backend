@@ -1,15 +1,12 @@
 from openai import OpenAI
 import os
 import requests
-from dotenv import load_dotenv
 import urllib.parse
-
-load_dotenv()
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY") or ""
 
-# ✅ Validação da chave Pixabay
+# ✅ Apenas em ambientes locais essa verificação ajuda
 if not PIXABAY_API_KEY:
     print("[ERRO] Chave da API do Pixabay não foi carregada!")
 else:
@@ -34,7 +31,6 @@ def fetch_image_from_pixabay(search_term: str) -> str:
     try:
         search_term = (search_term or "").strip()
 
-        # ⚠️ Termos inválidos ou genéricos não devem ser usados
         if not search_term or search_term.lower() in ["", "tema", "none", "null"]:
             raise ValueError("Termo de busca inválido para Pixabay.")
 
