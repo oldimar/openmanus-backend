@@ -4,17 +4,17 @@ import urllib.parse
 from openai import OpenAI
 from dotenv import load_dotenv
 
-# 🟢 Recarrega variáveis locais, sem atrapalhar Railway (ajuda no dev e no fallback)
+# 🟢 Carrega variáveis do .env (ambiente local)
 load_dotenv()
 
-# ✅ Pega da variável de ambiente (Railway ou local)
+# 🔑 APIs
 PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # 🔐 Cliente OpenAI
 client = OpenAI(api_key=OPENAI_API_KEY)
 
-# ✅ Verificação clara de problema de ambiente
+# ✅ Verificação da API
 if not PIXABAY_API_KEY:
     print("[ERRO] Chave da API do Pixabay não foi carregada!")
 else:
@@ -37,10 +37,11 @@ def generate_image(task_description: str) -> str:
 
 def fetch_image_from_pixabay(search_term: str) -> str:
     try:
-        search_term = (search_term or "").strip()
+        search_term = (search_term or "").strip().lower()
 
-        if not search_term or search_term.lower() in ["", "tema", "none", "null"]:
-            raise ValueError("Termo de busca inválido para Pixabay.")
+        termos_invalidos = {"", "tema", "atividade", "atividade 1", "imagem", "null", "none"}
+        if search_term in termos_invalidos or len(search_term) < 3:
+            raise ValueError(f"Termo inválido para Pixabay: '{search_term}'")
 
         search_term_encoded = urllib.parse.quote_plus(search_term)
 
@@ -54,21 +55,21 @@ def fetch_image_from_pixabay(search_term: str) -> str:
             "lang": "pt"
         }
 
-        print(f"[Pixabay] URL: {url}?key={PIXABAY_API_KEY}&q={search_term_encoded}")
+        # 🔍 Log mais claro
+        print(f"[PIXABAY] Tema usado: '{search_term}' - URL: {url}?key=***&q={search_term_encoded}")
 
         response = requests.get(url, params=params)
 
         if response.status_code != 200:
             raise Exception(f"Erro HTTP {response.status_code} ao consultar Pixabay")
 
-        if not response.text or response.text.strip() == "":
-            raise Exception("Resposta vazia da API do Pixabay")
-
         data = response.json()
         if data.get("hits"):
-            return data["hits"][0]["largeImageURL"]
-        else:
-            return "https://cdn.pixabay.com/photo/2017/01/31/17/44/question-mark-2026615_960_720.png"
+            hit = data["hits"][0]
+            return hit.get("largeImageURL") or hit.get("webformatURL")
+
+        raise Exception("Nenhuma imagem encontrada na resposta")
 
     except Exception as e:
-        return f"Erro ao buscar imagem do Pixabay: {str(e)}"
+        print(f"[Pixabay] Erro ao buscar imagem: {str(e)}")
+        return "https://cdn.pixabay.com/photo/2020/12/09/20/07/education-5816931_1280.jpg"
