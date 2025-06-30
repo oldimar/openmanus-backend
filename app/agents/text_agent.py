@@ -27,11 +27,13 @@ Tema:"""
 
         tema = response.choices[0].message.content.strip().lower()
 
-        if tema in ["", "tema", "null", "none"]:
-            raise ValueError("Tema inválido gerado pela IA")
+        # 🔍 Verifica se o tema gerado é inútil ou genérico
+        termos_invalidos = ["", "tema", "atividade", "assunto", "null", "none", "na", "não sei"]
+        if tema in termos_invalidos or len(tema) <= 2:
+            raise ValueError(f"Tema inválido: '{tema}'")
 
         return tema
 
     except Exception as e:
         print(f"[IA] Erro ao extrair tema da atividade: {e}")
-        return "educação"  # fallback seguro
+        return "educação"  # fallback seguro para imagens do Pixabay
