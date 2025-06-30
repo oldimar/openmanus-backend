@@ -5,6 +5,7 @@ from app.agents.text_agent import extract_activity_theme  # função auxiliar co
 def associate_images_to_activities(atividades: list[dict], max_com_imagem: int = 4) -> list[dict]:
     """
     Escolhe até `max_com_imagem` atividades e associa imagens temáticas a elas.
+    Se a imagem for um fallback (ex: question-mark ou education genérica), não atribui.
     """
     if not atividades:
         return []
@@ -20,9 +21,16 @@ def associate_images_to_activities(atividades: list[dict], max_com_imagem: int =
             try:
                 tema = extract_activity_theme(texto_base)
                 url = fetch_image_from_pixabay(tema)
-                atividade["imagem_url"] = url
+
+                # ✅ Ignora imagem se for fallback
+                if "question-mark" in url or "education-5816931" in url:
+                    print(f"[imagem] Fallback detectado para tema '{tema}', ignorando imagem.")
+                    atividade["imagem_url"] = None
+                else:
+                    atividade["imagem_url"] = url
+
             except Exception as e:
-                atividade["imagem_url"] = None  # Falhou, ignora
-                print(f"[imagem] erro ao buscar imagem para atividade: {e}")
+                atividade["imagem_url"] = None
+                print(f"[imagem] Erro ao buscar imagem para atividade: {e}")
 
     return atividades
