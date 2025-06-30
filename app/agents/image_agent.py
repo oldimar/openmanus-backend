@@ -2,6 +2,7 @@ from openai import OpenAI
 import os
 import requests
 from dotenv import load_dotenv
+import urllib.parse
 
 load_dotenv()
 
@@ -26,22 +27,25 @@ def generate_image(task_description: str) -> str:
 def fetch_image_from_pixabay(search_term: str) -> str:
     try:
         search_term = search_term.strip()
-        if not search_term:
-            raise ValueError("Termo de busca vazio ao consultar Pixabay.")
+        search_term_encoded = urllib.parse.quote_plus(search_term)
+
+        if not search_term_encoded or search_term_encoded in ["%5B%5D", "%7B%7D", "null"]:
+            raise ValueError("Termo de busca inválido para Pixabay.")
 
         url = "https://pixabay.com/api/"
         params = {
             "key": PIXABAY_API_KEY,
-            "q": search_term,
+            "q": search_term_encoded,
             "image_type": "photo",
             "safesearch": "true",
             "per_page": 5,
             "lang": "pt"
         }
 
+        print(f"[Pixabay] URL: {url}?key={PIXABAY_API_KEY}&q={search_term_encoded}")
+
         response = requests.get(url, params=params)
 
-        # 🔒 Verifica se a resposta é válida antes de usar .json()
         if response.status_code != 200:
             raise Exception(f"Erro HTTP {response.status_code} ao consultar Pixabay")
 
@@ -52,7 +56,7 @@ def fetch_image_from_pixabay(search_term: str) -> str:
         if data.get("hits"):
             return data["hits"][0]["largeImageURL"]
         else:
-            return "https://cdn.pixabay.com/photo/2017/01/31/17/44/question-mark-2026615_960_720.png"  # fallback
+            return "https://cdn.pixabay.com/photo/2017/01/31/17/44/question-mark-2026615_960_720.png"
 
     except Exception as e:
         return f"Erro ao buscar imagem do Pixabay: {str(e)}"
