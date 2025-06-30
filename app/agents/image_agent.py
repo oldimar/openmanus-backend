@@ -55,21 +55,26 @@ def fetch_image_from_pixabay(search_term: str) -> str:
             "lang": "pt"
         }
 
-        # 🔍 Log mais claro
-        print(f"[PIXABAY] Tema usado: '{search_term}' - URL: {url}?key=***&q={search_term_encoded}")
+        log_url = f"{url}?key=***&q={search_term_encoded}"
+        print(f"[PIXABAY] Tentando buscar imagem para o tema: '{search_term}'")
+        print(f"[PIXABAY] URL de requisição: {log_url}")
 
         response = requests.get(url, params=params)
 
         if response.status_code != 200:
-            raise Exception(f"Erro HTTP {response.status_code} ao consultar Pixabay")
+            raise Exception(f"Erro HTTP {response.status_code}")
 
         data = response.json()
         if data.get("hits"):
-            hit = data["hits"][0]
-            return hit.get("largeImageURL") or hit.get("webformatURL")
+            image_url = data["hits"][0].get("largeImageURL") or data["hits"][0].get("webformatURL")
+            print(f"[PIXABAY] Imagem encontrada: {image_url}")
+            return image_url
 
-        raise Exception("Nenhuma imagem encontrada na resposta")
+        print("[PIXABAY] Nenhuma imagem encontrada, usando fallback.")
+        raise Exception("Nenhuma imagem válida retornada")
 
     except Exception as e:
-        print(f"[Pixabay] Erro ao buscar imagem: {str(e)}")
-        return "https://cdn.pixabay.com/photo/2020/12/09/20/07/education-5816931_1280.jpg"
+        fallback_url = "https://cdn.pixabay.com/photo/2020/12/09/20/07/education-5816931_1280.jpg"
+        print(f"[PIXABAY] Erro ao buscar imagem: {str(e)}")
+        print(f"[PIXABAY] Imagem de fallback: {fallback_url}")
+        return fallback_url
