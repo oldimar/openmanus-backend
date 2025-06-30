@@ -39,12 +39,13 @@ def fetch_image_from_pixabay(search_term: str) -> str:
     try:
         search_term = (search_term or "").strip().lower()
 
+        # Lista de termos inválidos
         termos_invalidos = {"", "tema", "atividade", "atividade 1", "imagem", "null", "none"}
         if search_term in termos_invalidos or len(search_term) < 3:
             raise ValueError(f"Termo inválido para Pixabay: '{search_term}'")
 
+        # Montagem da URL
         search_term_encoded = urllib.parse.quote_plus(search_term)
-
         url = "https://pixabay.com/api/"
         params = {
             "key": PIXABAY_API_KEY,
@@ -64,14 +65,21 @@ def fetch_image_from_pixabay(search_term: str) -> str:
         if response.status_code != 200:
             raise Exception(f"Erro HTTP {response.status_code}")
 
+        if not response.text.strip():
+            raise Exception("Resposta vazia da API do Pixabay")
+
         data = response.json()
         if data.get("hits"):
-            image_url = data["hits"][0].get("largeImageURL") or data["hits"][0].get("webformatURL")
-            print(f"[PIXABAY] Imagem encontrada: {image_url}")
-            return image_url
+            hit = data["hits"][0]
+            image_url = hit.get("largeImageURL") or hit.get("webformatURL")
+            if image_url and image_url.startswith(("http://", "https://")):
+                print(f"[PIXABAY] Imagem encontrada: {image_url}")
+                return image_url
+            else:
+                raise Exception("Imagem inválida recebida no JSON")
 
         print("[PIXABAY] Nenhuma imagem encontrada, usando fallback.")
-        raise Exception("Nenhuma imagem válida retornada")
+        raise Exception("Nenhum resultado válido")
 
     except Exception as e:
         fallback_url = "https://cdn.pixabay.com/photo/2020/12/09/20/07/education-5816931_1280.jpg"
