@@ -7,7 +7,10 @@ import urllib.parse
 load_dotenv()
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")
+PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY") or ""
+
+if not PIXABAY_API_KEY:
+    print("[ERRO] Chave da API do Pixabay não foi carregada!")
 
 
 def generate_image(task_description: str) -> str:
@@ -26,11 +29,12 @@ def generate_image(task_description: str) -> str:
 
 def fetch_image_from_pixabay(search_term: str) -> str:
     try:
-        search_term = search_term.strip()
-        search_term_encoded = urllib.parse.quote_plus(search_term)
+        search_term = (search_term or "").strip()
 
-        if not search_term_encoded or search_term_encoded in ["%5B%5D", "%7B%7D", "null"]:
+        if not search_term or search_term.lower() in ["", "tema", "none", "null"]:
             raise ValueError("Termo de busca inválido para Pixabay.")
+
+        search_term_encoded = urllib.parse.quote_plus(search_term)
 
         url = "https://pixabay.com/api/"
         params = {
