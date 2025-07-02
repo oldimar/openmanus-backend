@@ -64,12 +64,21 @@ async def process_task(task_text, task_id):
 
         # 👉 3. Rodar agentes
         if task_type:
-            try:
-                result = run_agent_by_type(task_type, final_prompt)
-                all_results.append(f"Resultado do agente '{task_type}':\n{result}\n\n---\n")
-                agents_to_run = [task_type]
-            except Exception as e:
-                all_results.append(f"[Erro ao rodar o agente '{task_type}': {str(e)}]")
+            if task_type == "plan":
+                agents_to_run = ["plan", "write", "report", "code", "image"]
+                for agent in agents_to_run:
+                    try:
+                        agent_result = run_agent_by_type(agent, final_prompt)
+                        all_results.append(f"Resultado do agente '{agent}':\n{agent_result}\n\n---\n")
+                    except Exception as e:
+                        all_results.append(f"[Erro ao rodar o agente '{agent}': {str(e)}]")
+            else:
+                try:
+                    result = run_agent_by_type(task_type, final_prompt)
+                    all_results.append(f"Resultado do agente '{task_type}':\n{result}\n\n---\n")
+                    agents_to_run = [task_type]
+                except Exception as e:
+                    all_results.append(f"[Erro ao rodar o agente '{task_type}': {str(e)}]")
         else:
             agents_to_run = decide_agents(final_prompt)
             for agent in agents_to_run:
@@ -121,7 +130,7 @@ async def process_task(task_text, task_id):
         tasks[task_id]["result"] = f"Erro ao processar a task: {str(e)}"
         save_task_log(task_id, task_data, [], tasks[task_id]["result"])
 
-    return tasks[task_id]["result"], tasks[task_id]["structured_result"]  # ✅ devolve os dois
+    return tasks[task_id]["result"], tasks[task_id]["structured_result"]
 
 
 def run_agent_by_type(agent_type, prompt_text):
