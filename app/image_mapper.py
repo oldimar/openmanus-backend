@@ -1,11 +1,11 @@
 import random
 from app.agents.image_agent import fetch_image_from_pixabay
-from app.agents.text_agent import extract_activity_theme  # IA que extrai o tema da atividade
+from app.agents.text_agent import extract_activity_theme  # IA para extrair tema da atividade
 
 def associate_images_to_activities(atividades: list[dict], max_com_imagem: int = 4) -> list[dict]:
     """
     Escolhe até `max_com_imagem` atividades e associa imagens temáticas a elas.
-    Cada atividade selecionada poderá receber múltiplas imagens (caso o tema seja bem definido).
+    Agora suporta múltiplas imagens por atividade.
     """
     if not atividades:
         return []
@@ -14,15 +14,19 @@ def associate_images_to_activities(atividades: list[dict], max_com_imagem: int =
     escolhidas = random.sample(atividades, min(max_com_imagem, total))
 
     for atividade in atividades:
-        atividade["imagens_url"] = []  # nova estrutura
-        atividade.pop("imagem_url", None)  # remove legado se existir
+        # Nova estrutura com suporte a múltiplas imagens
+        atividade["imagens_url"] = []
+        atividade.pop("imagem_url", None)  # remove campo antigo se existir
 
         if atividade in escolhidas:
             texto_base = atividade.get("texto", "")
             try:
                 tema = extract_activity_theme(texto_base)
-                urls = fetch_image_from_pixabay(tema, quantidade=2)  # ⚠️ agora busca múltiplas
-                atividade["imagens_url"] = urls or []
+                urls = fetch_image_from_pixabay(tema, quantidade=2)  # busca até 2 imagens
+                if urls:
+                    atividade["imagens_url"] = urls
+                else:
+                    print(f"[imagem] Nenhuma imagem válida encontrada para tema '{tema}'.")
 
             except Exception as e:
                 atividade["imagens_url"] = []
