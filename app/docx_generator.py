@@ -118,16 +118,16 @@ def generate_docx_from_result(task_id, task_result):
                 para.paragraph_format.space_after = Pt(4)
 
         # Imagem externa (se houver)
-        if imagem_url.startswith("http"):
-            image_filename = os.path.join(temp_image_folder, os.path.basename(imagem_url).split("?")[0])
-            if download_image(imagem_url, image_filename):
-                try:
-                    doc.add_paragraph()
-                    doc.add_picture(image_filename, width=Inches(5))
-                    doc.paragraphs[-1].alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-                    doc.add_paragraph("[Imagem relacionada à atividade]").alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-                except Exception as e:
-                    doc.add_paragraph(f"[Erro ao adicionar imagem externa: {str(e)}]")
+if imagem_url.startswith("http"):
+    image_filename = os.path.join(temp_image_folder, os.path.basename(imagem_url).split("?")[0])
+    if download_image(imagem_url, image_filename):
+        try:
+            doc.add_paragraph()
+            doc.add_picture(image_filename, width=Inches(5))
+            doc.paragraphs[-1].alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+            doc.add_paragraph("[Imagem relacionada à atividade]").alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+        except Exception as e:
+            doc.add_paragraph(f"[Erro ao adicionar imagem externa: {str(e)}]")
 
     output_path = os.path.join(DOCX_FOLDER, f"{task_id}.docx")
     doc.save(output_path)
