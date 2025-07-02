@@ -17,9 +17,18 @@ def associate_images_to_activities(atividades: list[dict], max_com_imagem: int =
         atividade["imagem_url"] = None  # padrão
 
         if atividade in escolhidas:
-            texto_base = atividade.get("texto", "")
+            texto_base = (atividade.get("texto") or "").strip()
+
+            # ❌ Ignora se o texto for vazio ou curto
+            if not texto_base or len(texto_base.split()) < 4:
+                print(f"[imagem] Atividade ignorada por texto insuficiente: '{texto_base}'")
+                continue
+
             try:
                 tema = extract_activity_theme(texto_base)
+                if not tema:
+                    continue
+
                 url = fetch_image_from_pixabay(tema)
 
                 # ✅ Ignora imagem se for fallback
