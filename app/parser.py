@@ -20,16 +20,21 @@ def parse_task_output_into_structured_data(all_results: list[str], agents_run: l
         if agent not in agentes_validos:
             continue
 
+        # Remove separadores ou marcadores do tipo "Resultado do agente"
         blocos = re.split(r"\n\s*ATIVIDADE\s+\d+\s*\n", raw, flags=re.IGNORECASE)
         blocos = [b.strip() for b in blocos if b.strip()]
 
         for bloco in blocos:
+            # ⚠️ Ignora linhas-resumo como "Resultado do agente 'xxx':"
+            if re.match(r"^resultado do agente", bloco.strip().lower()):
+                continue
+
             # Extrai texto principal da atividade
             match_texto = re.search(r"🔊\s*(.+)", bloco)
             texto = match_texto.group(1).strip() if match_texto else bloco.split("\n")[0].strip()
 
             if not texto or texto.lower() in ["atividade", "exercício", "null", "none"]:
-                continue  # pula blocos vazios ou genéricos
+                continue
 
             # Extrai opções (formato "( ) X" ou "- X")
             opcoes = re.findall(r"(\( ?\)|- )\s*(.+)", bloco)
