@@ -49,13 +49,13 @@ def generate_docx_from_result(task_id, task_result):
     doc.add_paragraph('- Relatório Final')
     doc.add_page_break()
 
-    # ✅ Blocos estruturados
+    # ✅ BLOCOS DE ATIVIDADES
     for bloco in task_result:
         texto = bloco.get("texto", "")
-        imagem_url = bloco.get("imagem_url") or ""
-        imagem_url = imagem_url.strip() if isinstance(imagem_url, str) else ""
+        imagem_url = (bloco.get("imagem_url") or "").strip()
         opcoes = bloco.get("opcoes", [])
 
+        # Texto da atividade
         if texto:
             lines = texto.split("\n")
             for line in lines:
@@ -87,19 +87,6 @@ def generate_docx_from_result(task_id, task_result):
                 elif line.startswith("- ") or line.startswith("* "):
                     para = doc.add_paragraph(line[2:].strip(), style='List Bullet')
                     para.paragraph_format.space_after = Pt(6)
-                elif re.match(r'!\[.*\]\(http.*\)', line):
-                    match = re.match(r'!\[(.*?)\]\((http.*?)\)', line)
-                    if match:
-                        alt_text = match.group(1)
-                        image_url = match.group(2)
-                        image_filename = os.path.join(temp_image_folder, os.path.basename(image_url).split("?")[0])
-                        if download_image(image_url, image_filename):
-                            try:
-                                doc.add_picture(image_filename, width=Inches(5))
-                                doc.paragraphs[-1].alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-                                doc.add_paragraph(alt_text).alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-                            except Exception as e:
-                                doc.add_paragraph(f"[Erro ao adicionar imagem markdown: {str(e)}]")
                 elif re.match(r'^https?://.*\.(png|jpg|jpeg)', line, re.IGNORECASE):
                     image_url = line
                     image_filename = os.path.join(temp_image_folder, os.path.basename(image_url).split("?")[0])
@@ -124,6 +111,13 @@ def generate_docx_from_result(task_id, task_result):
                     para = doc.add_paragraph(line)
                     para.paragraph_format.space_after = Pt(8)
 
+        # Alternativas da atividade (✅ novo)
+        if opcoes:
+            for opcao in opcoes:
+                para = doc.add_paragraph(opcao)
+                para.paragraph_format.space_after = Pt(4)
+
+        # Imagem externa (se houver)
         if imagem_url.startswith("http"):
             image_filename = os.path.join(temp_image_folder, os.path.basename(imagem_url).split("?")[0])
             if download_image(imagem_url, image_filename):
@@ -131,7 +125,7 @@ def generate_docx_from_result(task_id, task_result):
                     doc.add_paragraph()
                     doc.add_picture(image_filename, width=Inches(5))
                     doc.paragraphs[-1].alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-                    doc.add_paragraph("[Imagem gerada automaticamente]").alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+                    doc.add_paragraph("[Imagem relacionada à atividade]").alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
                 except Exception as e:
                     doc.add_paragraph(f"[Erro ao adicionar imagem externa: {str(e)}]")
 
