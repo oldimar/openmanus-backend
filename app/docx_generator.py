@@ -52,7 +52,8 @@ def generate_docx_from_result(task_id, task_result):
     # ✅ Blocos estruturados
     for bloco in task_result:
         texto = bloco.get("texto", "")
-        imagem_url = bloco.get("imagem_url", "").strip()
+        imagem_url = bloco.get("imagem_url") or ""
+        imagem_url = imagem_url.strip() if isinstance(imagem_url, str) else ""
         opcoes = bloco.get("opcoes", [])
 
         if texto:
