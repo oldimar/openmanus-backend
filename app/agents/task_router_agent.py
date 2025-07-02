@@ -12,17 +12,18 @@ Sua função é analisar a descrição da tarefa + o conteúdo de anexos (se hou
 
 - plan → Criar um planejamento de aula ou de atividades.
 - code → Gerar códigos, exercícios de programação ou scripts educativos.
-- write → Produzir textos de apoio, artigos ou explicações.
+- write → Produzir textos de apoio, atividades ou explicações.
 - image → Gerar imagens educativas baseadas nos temas.
 - report → Criar um relatório final de fechamento.
 
 Regras:
 
-- Se houver termos como "planejar", "plano", "sequência de atividades", use **plan**.
-- Se o usuário pedir exercícios de programação, scripts ou códigos → use **code**.
-- Se houver pedido por imagens ou se o conteúdo anexado for um PDF com imagens → inclua **image**.
-- Se o pedido for um texto longo, artigo, ou conteúdo descritivo → inclua **write**.
-- Se o professor pedir um resumo final ou uma análise → inclua **report**.
+- Se o pedido mencionar "atividade", "atividades", "atividade pedagógica", "vocabulário", "leitura", "2º ano", "diagnóstica" → use write, report e image.
+- Se houver termos como "planejar", "plano", "sequência de atividades" → use plan.
+- Se o usuário pedir exercícios de programação, scripts ou códigos → use code.
+- Se houver pedido por imagens ou se o conteúdo anexado for um PDF com imagens → inclua image.
+- Se o pedido for um texto longo, artigo ou conteúdo descritivo → inclua write.
+- Se o professor pedir um resumo final ou uma análise → inclua report.
 
 ⚠️ Importante: Você pode incluir múltiplos agentes, em qualquer ordem lógica.
 
@@ -30,14 +31,14 @@ Formato de resposta esperado (JSON Array apenas, sem textos explicativos):
 
 Exemplos válidos:
 ["plan"]
-["plan", "image", "report"]
-["write", "image"]
+["write", "image", "report"]
+["code", "report"]
 
 Agora analise o conteúdo da tarefa + anexos:
 
 {prompt}
 
-Lembre-se: Responda apenas com o JSON Array final.
+Responda apenas com o JSON Array final.
 """
 
     try:
@@ -54,7 +55,6 @@ Lembre-se: Responda apenas com o JSON Array final.
         # Valida se o retorno é um JSON Array
         agents = json.loads(raw_output)
 
-        # Se por algum motivo não for uma lista, força fallback
         if not isinstance(agents, list):
             raise ValueError("Resposta da IA não é uma lista JSON válida.")
 
@@ -62,5 +62,4 @@ Lembre-se: Responda apenas com o JSON Array final.
 
     except Exception as e:
         print(f"Erro no task_router_agent: {str(e)}")
-        # Fallback de segurança
-        return ["plan"]
+        return ["write", "report", "image"]  # fallback seguro
