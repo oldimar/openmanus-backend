@@ -14,7 +14,7 @@ from app.agents.task_router_agent import decide_agents
 from app.ocr_reader import extract_text_from_pdf
 from app.image_mapper import associate_images_to_activities
 from app.formatters import format_task_output_as_worksheet
-from app.parser import parse_task_output_into_structured_data  # 🆕
+from app.parser import parse_task_output_into_structured_data
 
 load_dotenv()
 
@@ -31,8 +31,9 @@ async def process_task(task_text, task_id):
         task_description = task_data.get("task_description", "")
         task_type = task_data.get("task_type", "")
         task_id_files = task_data.get("task_id_files", "")
+        task_grade = task_data.get("task_grade", "")
 
-        # 👉 1. Ler conteúdo dos anexos (OCR de PDF + TXT puro)
+        # 1. Ler conteúdo dos anexos (OCR de PDF + TXT puro)
         extra_context = ""
         if task_id_files:
             folder_path = os.path.join(UPLOAD_FOLDER, task_id_files)
@@ -58,11 +59,13 @@ async def process_task(task_text, task_id):
                 extra_context = "\n\n".join(file_contents)
 
         final_prompt = f"{task_description}\n\n{extra_context}" if extra_context else task_description
+        if task_grade:
+            final_prompt += f"\n\n[Série/ano da turma: {task_grade}]"
 
         all_results = []
         agents_to_run = []
 
-        # 👉 3. Rodar agentes
+        # 3. Rodar agentes
         if task_type:
             if task_type == "plan":
                 agents_to_run = ["plan", "write", "report", "code", "image"]
@@ -108,7 +111,7 @@ async def process_task(task_text, task_id):
         # ✅ Agora sim, parse apenas com dados úteis
         atividades = parse_task_output_into_structured_data(resultados_filtrados, agentes_filtrados)
 
-        # ✅ Adiciona imagens
+        # ✅ Adiciona imagens (múltiplas)
         atividades_com_imagem = associate_images_to_activities(atividades)
 
         # ✅ Gera saída formatada (para DOCX e exibição)
