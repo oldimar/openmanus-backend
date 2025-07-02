@@ -1,8 +1,4 @@
-import os
-from openai import OpenAI
-
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
+import re
 from openai import OpenAI
 import os
 from dotenv import load_dotenv
@@ -10,40 +6,46 @@ from dotenv import load_dotenv
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-def extract_activity_theme(texto_base: str) -> str:
+def extract_activity_theme(texto_base: str) -> str | None:
     try:
-        if not texto_base or len(texto_base.strip()) < 10:
-            raise ValueError("Texto muito curto para extrair tema.")
+        texto_limpo = texto_base.strip()
 
-        # Remove prefixos técnicos (evita pegar 'Resultado do agente...')
-        linhas = texto_base.strip().split("\n")
-        linhas = [l for l in linhas if "resultado do agente" not in l.lower()]
-        texto_limpo = " ".join(linhas).strip()
+        # 1. Remover marcadores e cabeçalhos irrelevantes
+        texto_reduzido = re.sub(r"(Resultado do agente '.*?':|---+)", "", texto_limpo).strip()
 
-        if len(texto_limpo) < 10:
-            raise ValueError("Texto insuficiente após limpeza.")
+        if not texto_reduzido or len(texto_reduzido.split()) < 5:
+            print("[TEMA] Erro ao extrair tema: Texto insuficiente após limpeza.")
+            return None
 
-        prompt = (
-            f"Texto da atividade: \"{texto_limpo}\"\n\n"
-            "Com base nesse texto, qual é o tema principal tratado? "
-            "Responda apenas com uma ou duas palavras (ex: 'animais', 'cores', 'números')."
-        )
+        # 2. Envia prompt curto para a IA extrair o tema principal
+        prompt = f"""
+        Abaixo está a descrição de uma atividade educacional. Extraia apenas um tema curto e representativo (máximo 3 palavras), como "meio ambiente", "vocabulário", "cidadania", etc.
+
+        Texto:
+        {texto_reduzido}
+
+        Tema:
+        """
 
         response = client.chat.completions.create(
             model="gpt-4o",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.3,
+            messages=[
+                {"role": "system", "content": "Você é um extrator de temas educacionais."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.2
         )
 
         tema = response.choices[0].message.content.strip().lower()
 
-        termos_invalidos = {"atividade", "tema", "imagem", "nenhum", "inexistente", "texto", "null", "none"}
-        if tema in termos_invalidos or len(tema) < 3:
-            raise ValueError(f"Tema considerado inválido: '{tema}'")
+        # 3. Validação do tema
+        if not tema or tema in ["tema", "atividade", "imagem", "null", "none"]:
+            print(f"[TEMA] Tema extraído inválido: '{tema}'")
+            return None
 
-        print(f"[TEMA] Tema extraído: '{tema}'")
+        print(f"[TEMA] Tema extraído com sucesso: '{tema}'")
         return tema
 
     except Exception as e:
-        print(f"[TEMA] Erro ao extrair tema: {str(e)}")
-        return "educação"  # fallback neutro
+        print(f"[TEMA] Erro ao extrair tema via IA: {str(e)}")
+        return None
