@@ -86,8 +86,18 @@ async def process_task(task_text, task_id):
             tasks[task_id]["result"] = "Erro: Nenhum resultado foi gerado por nenhum agente."
             return tasks[task_id]["result"]
 
-        # ✅ NOVO: parse para estrutura JSON
-        atividades = parse_task_output_into_structured_data(all_results, agents_to_run)
+        # ✅ Filtra apenas agentes suportados pelo parser
+agentes_validos = {"write", "report", "code"}
+resultados_filtrados = []
+agentes_filtrados = []
+
+for a, r in zip(agents_to_run, all_results):
+    if a in agentes_validos:
+        agentes_filtrados.append(a)
+        resultados_filtrados.append(r)
+
+# ✅ Agora sim, parse apenas com dados úteis
+atividades = parse_task_output_into_structured_data(resultados_filtrados, agentes_filtrados)
 
         # ✅ Adiciona imagens
         atividades_com_imagem = associate_images_to_activities(atividades)
