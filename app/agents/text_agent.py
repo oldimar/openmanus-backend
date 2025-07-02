@@ -19,12 +19,12 @@ def extract_activity_theme(texto_base: str) -> str | None:
 
         # 2. Envia prompt curto para a IA extrair o tema principal
         prompt = f"""
-        Abaixo está a descrição de uma atividade educacional. Extraia apenas um tema curto e representativo (máximo 3 palavras), como "meio ambiente", "vocabulário", "cidadania", etc.
+Abaixo está a descrição de uma atividade educacional. Extraia apenas um tema curto e representativo (máximo 3 palavras), como "meio ambiente", "vocabulário", "emoções", etc.
 
-        Texto:
-        {texto_reduzido}
+Texto:
+{texto_reduzido}
 
-        Tema:
+Tema:
         """
 
         response = client.chat.completions.create(
@@ -43,8 +43,26 @@ def extract_activity_theme(texto_base: str) -> str | None:
             print(f"[TEMA] Tema extraído inválido: '{tema}'")
             return None
 
-        print(f"[TEMA] Tema extraído com sucesso: '{tema}'")
-        return tema
+        # 4. Normalização de termos específicos para temas mais amplos
+        normalizacao = {
+            "compreensão de texto": "leitura",
+            "interpretação de texto": "leitura",
+            "resolução de conflitos": "emoções",
+            "habilidades sociais": "crianças",
+            "consumo consciente": "meio ambiente",
+            "educação financeira": "dinheiro",
+            "ética e cidadania": "cidadania",
+            "cuidado com o corpo": "higiene",
+            "expressão corporal": "atividades físicas",
+            "desenvolvimento emocional": "emoções"
+        }
+
+        tema_normalizado = normalizacao.get(tema, tema)
+
+        if tema != tema_normalizado:
+            print(f"[TEMA] Tema normalizado: '{tema}' → '{tema_normalizado}'")
+
+        return tema_normalizado
 
     except Exception as e:
         print(f"[TEMA] Erro ao extrair tema via IA: {str(e)}")
