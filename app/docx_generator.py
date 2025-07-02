@@ -9,6 +9,7 @@ from datetime import datetime
 UPLOAD_FOLDER = "uploads"
 DOCX_FOLDER = "generated_docs"
 
+
 def download_image(url, save_path):
     try:
         headers = {
@@ -26,6 +27,7 @@ def download_image(url, save_path):
         print(f"Erro ao baixar imagem: {url} - {str(e)}")
         return False
 
+
 def generate_docx_from_result(task_id, task_result):
     os.makedirs(DOCX_FOLDER, exist_ok=True)
     temp_image_folder = os.path.join(DOCX_FOLDER, f"images_{task_id}")
@@ -39,7 +41,7 @@ def generate_docx_from_result(task_id, task_result):
     doc.add_paragraph(f'Data de geração: {datetime.now().strftime("%d/%m/%Y %H:%M")}').alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
     doc.add_page_break()
 
-    # ✅ SUMÁRIO (estático)
+    # ✅ SUMÁRIO
     doc.add_heading('Sumário', level=1)
     doc.add_paragraph('Este é um sumário estático. Para gerar um sumário real, atualize manualmente dentro do Word Desktop.')
     doc.add_paragraph('- Plano de Aula')
@@ -49,81 +51,86 @@ def generate_docx_from_result(task_id, task_result):
     doc.add_paragraph('- Relatório Final')
     doc.add_page_break()
 
-    # ✅ Mapeia agentes em títulos
-    secao_por_agente = {
-        "plan": "Plano de Aula",
-        "code": "Código Gerado",
-        "write": "Texto Produzido",
-        "image": "Imagens Geradas",
-        "report": "Relatório Final"
-    }
-
-    # ✅ Renderização de blocos
+    # ✅ BLOCOS DE ATIVIDADES
     for bloco in task_result:
         texto = bloco.get("texto", "")
-        imagem_url = (bloco.get("imagem_url") or "").strip()
+        imagens = bloco.get("imagens_url", [])
         opcoes = bloco.get("opcoes", [])
 
-        if not texto:
-            continue
+        # Texto da atividade
+        if texto:
+            lines = texto.split("\n")
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    doc.add_paragraph()
+                    continue
 
-        # Detecta cabeçalho do agente
-        match_agent = re.match(r"Resultado do agente '(.*?)':", texto)
-        if match_agent:
-            agent_name = match_agent.group(1)
-            titulo_secao = secao_por_agente.get(agent_name, f"Agente: {agent_name}")
-            doc.add_page_break()
-            doc.add_heading(titulo_secao, level=1)
-            continue
+                match_agent = re.match(r"Resultado do agente '(.*?)':", line)
+                if match_agent:
+                    agent_name = match_agent.group(1)
+                    section_title = {
+                        "plan": "Plano de Aula",
+                        "code": "Código Gerado",
+                        "write": "Texto Produzido",
+                        "image": "Imagens Geradas",
+                        "report": "Relatório Final"
+                    }.get(agent_name, f"Agente: {agent_name}")
+                    doc.add_page_break()
+                    doc.add_heading(section_title, level=1)
+                    continue
 
-        # Corpo do texto (markdown simples)
-        lines = texto.split("\n")
-        for line in lines:
-            line = line.strip()
-            if not line:
-                doc.add_paragraph()
-                continue
-            elif line.startswith("# "):
-                doc.add_heading(line[2:].strip(), level=2)
-            elif line.startswith("## "):
-                doc.add_heading(line[3:].strip(), level=3)
-            elif line.startswith("### "):
-                doc.add_heading(line[4:].strip(), level=4)
-            elif line.startswith("- ") or line.startswith("* "):
-                p = doc.add_paragraph(line[2:].strip(), style='List Bullet')
-                p.paragraph_format.space_after = Pt(6)
-            elif "**" in line:
-                p = doc.add_paragraph()
-                parts = re.split(r'(\*\*.*?\*\*)', line)
-                for part in parts:
-                    run = p.add_run()
-                    if part.startswith("**") and part.endswith("**"):
-                        run.text = part[2:-2]
-                        run.bold = True
-                    else:
-                        run.text = part
-                p.paragraph_format.space_after = Pt(8)
-            else:
-                p = doc.add_paragraph(line)
-                p.paragraph_format.space_after = Pt(8)
+                if line.startswith("# "):
+                    doc.add_heading(line[2:].strip(), level=2)
+                elif line.startswith("## "):
+                    doc.add_heading(line[3:].strip(), level=3)
+                elif line.startswith("### "):
+                    doc.add_heading(line[4:].strip(), level=4)
+                elif line.startswith("- ") or line.startswith("* "):
+                    para = doc.add_paragraph(line[2:].strip(), style='List Bullet')
+                    para.paragraph_format.space_after = Pt(6)
+                elif re.match(r'^https?://.*\.(png|jpg|jpeg)', line, re.IGNORECASE):
+                    image_url = line
+                    image_filename = os.path.join(temp_image_folder, os.path.basename(image_url).split("?")[0])
+                    if download_image(image_url, image_filename):
+                        try:
+                            doc.add_picture(image_filename, width=Inches(5))
+                            doc.paragraphs[-1].alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+                        except Exception as e:
+                            doc.add_paragraph(f"[Erro ao adicionar imagem direta: {str(e)}]")
+                elif "**" in line:
+                    paragraph = doc.add_paragraph()
+                    parts = re.split(r'(\*\*.*?\*\*)', line)
+                    for part in parts:
+                        run = paragraph.add_run()
+                        if part.startswith("**") and part.endswith("**"):
+                            run.text = part[2:-2]
+                            run.bold = True
+                        else:
+                            run.text = part
+                    paragraph.paragraph_format.space_after = Pt(8)
+                else:
+                    para = doc.add_paragraph(line)
+                    para.paragraph_format.space_after = Pt(8)
 
-        # Opcional: adiciona opções (caso existam)
+        # Alternativas
         if opcoes:
             for opcao in opcoes:
-                p = doc.add_paragraph(opcao)
-                p.paragraph_format.space_after = Pt(4)
+                para = doc.add_paragraph(opcao)
+                para.paragraph_format.space_after = Pt(4)
 
-        # Imagem (caso exista)
-        if imagem_url.startswith("http"):
-            image_filename = os.path.join(temp_image_folder, os.path.basename(imagem_url).split("?")[0])
-            if download_image(imagem_url, image_filename):
-                try:
-                    doc.add_paragraph()
-                    doc.add_picture(image_filename, width=Inches(5))
-                    doc.paragraphs[-1].alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-                    doc.add_paragraph("[Imagem relacionada à atividade]").alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-                except Exception as e:
-                    doc.add_paragraph(f"[Erro ao adicionar imagem externa: {str(e)}]")
+        # Múltiplas imagens (novidade)
+        for image_url in imagens:
+            if image_url and image_url.startswith("http"):
+                image_filename = os.path.join(temp_image_folder, os.path.basename(image_url).split("?")[0])
+                if download_image(image_url, image_filename):
+                    try:
+                        doc.add_paragraph()
+                        doc.add_picture(image_filename, width=Inches(5))
+                        doc.paragraphs[-1].alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+                        doc.add_paragraph("[Imagem relacionada à atividade]").alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+                    except Exception as e:
+                        doc.add_paragraph(f"[Erro ao adicionar imagem externa: {str(e)}]")
 
     output_path = os.path.join(DOCX_FOLDER, f"{task_id}.docx")
     doc.save(output_path)
