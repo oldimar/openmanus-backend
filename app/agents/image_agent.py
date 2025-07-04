@@ -3,13 +3,17 @@ import requests
 from openai import OpenAI
 from dotenv import load_dotenv
 
+# 🟢 Carrega variáveis do .env
 load_dotenv()
 
+# 🔑 APIs
 PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
+# 🔐 Cliente OpenAI
 client = OpenAI(api_key=OPENAI_API_KEY)
 
+# ✅ Verificação da API
 if not PIXABAY_API_KEY:
     print("[ERRO] Chave da API do Pixabay não foi carregada!")
 else:
@@ -68,7 +72,6 @@ def fetch_image_from_pixabay(search_term: str, quantidade: int = 1, tentativas: 
             "image_type": "photo",
             "safesearch": "true",
             "per_page": quantidade
-            # ⚠️ lang=pt removido — não afeta os resultados de busca
         }
 
         print(f"[PIXABAY] Buscando imagem para: '{translated_term}'")
@@ -81,23 +84,23 @@ def fetch_image_from_pixabay(search_term: str, quantidade: int = 1, tentativas: 
 
         imagens = []
         for hit in data.get("hits", []):
-            image_url = hit.get("largeImageURL") or hit.get("webformatURL")
+            image_url = hit.get("webformatURL") or hit.get("largeImageURL")
             if image_url and image_url.startswith("http"):
                 imagens.append(image_url)
+                print(f"[PIXABAY] ➕ Imagem coletada: {image_url}")
                 if len(imagens) >= quantidade:
                     break
 
         if imagens:
-            print(f"[PIXABAY] {len(imagens)} imagem(ns) encontrada(s).")
+            print(f"[PIXABAY] ✅ {len(imagens)} imagem(ns) válida(s) encontrada(s).")
             return imagens
 
-        # ⛔ Não achou imagens: tenta fallback só uma vez
         if tentativas == 0:
-            print(f"[PIXABAY] Nenhum resultado para '{translated_term}'. Tentando fallback com 'education'...")
+            print(f"[PIXABAY] Nenhuma imagem válida. Tentando fallback com 'education'...")
             return fetch_image_from_pixabay("education", quantidade, tentativas=1)
 
         raise Exception("Nenhuma imagem válida retornada.")
 
     except Exception as e:
-        print(f"[PIXABAY] Erro ao buscar imagem: {str(e)}")
+        print(f"[PIXABAY] ❌ Erro ao buscar imagem: {str(e)}")
         return ["https://cdn.pixabay.com/photo/2020/12/09/20/07/education-5816931_1280.jpg"]
