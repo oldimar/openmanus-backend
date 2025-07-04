@@ -33,10 +33,10 @@ def format_task_output_as_worksheet(task_id: str, all_results: list[dict], agent
             if texto:
                 output.append("🔊 " + texto)
 
-            # 2. Imagens
+            # 2. Imagem (apenas uma)
             imagens = atividade.get("imagens_url", [])
-            for imagem in imagens:
-                output.append(f"🖼️ IMAGEM: {imagem}")
+            if imagens and isinstance(imagens, list) and imagens[0].startswith("http"):
+                output.append(f"🖼️ IMAGEM: {imagens[0]}")
 
             # 3. Opções
             opcoes = atividade.get("opcoes", [])
