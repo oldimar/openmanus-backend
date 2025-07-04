@@ -1,4 +1,31 @@
+import os
 import re
+from dotenv import load_dotenv
+from openai import OpenAI
+
+load_dotenv()
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# 🔄 Mapeamento de temas extraídos para categorias normalizadas
+TEMA_NORMALIZADO = {
+    "compreensão de texto": "leitura",
+    "leitura e interpretação": "leitura",
+    "interpretação": "leitura",
+    "interpretação textual": "leitura",
+    "texto": "leitura",
+    "vocabulário": "vocabulário",
+    "palavras": "vocabulário",
+    "sinônimos": "vocabulário",
+    "animais": "animais",
+    "matemática": "matemática",
+    "meio ambiente": "meio ambiente",
+    "cidadania": "cidadania",
+    "frutas": "alimentação",
+    "alimentação": "alimentação",
+    "educação": "educação"
+}
+
+
 def extract_activity_theme(texto_base: str, task_grade: str = "") -> str | None:
     try:
         texto_limpo = texto_base.strip()
