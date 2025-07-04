@@ -1,31 +1,3 @@
-import re
-from openai import OpenAI
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-# Mapeamento para normalizar temas extraídos em categorias úteis
-TEMA_NORMALIZADO = {
-    "compreensão de texto": "leitura",
-    "leitura e interpretação": "leitura",
-    "interpretação": "leitura",
-    "interpretação textual": "leitura",
-    "texto": "leitura",
-    "vocabulário": "vocabulário",
-    "palavras": "vocabulário",
-    "sinônimos": "vocabulário",
-    "animais": "animais",
-    "matemática": "matemática",
-    "meio ambiente": "meio ambiente",
-    "cidadania": "cidadania",
-    "frutas": "alimentação",
-    "alimentação": "alimentação",
-    "educação": "educação"
-}
-
-
 def extract_activity_theme(texto_base: str, task_grade: str = "") -> str | None:
     try:
         texto_limpo = texto_base.strip()
@@ -36,16 +8,18 @@ def extract_activity_theme(texto_base: str, task_grade: str = "") -> str | None:
             return None
 
         prompt_intro = (
-            "Abaixo está a descrição de uma atividade educacional. "
-            "Extraia apenas um tema curto e representativo (máximo 3 palavras), como \"meio ambiente\", \"vocabulário\", \"cidadania\", etc."
+            "Você receberá a descrição de uma atividade escolar. "
+            "Seu trabalho é identificar **apenas um** tema central e representativo que se relacione com o conteúdo da atividade. "
+            "O tema deve ser curto (1 a 3 palavras) e estar relacionado ao assunto tratado (ex: 'golfinhos', 'recifes de coral', 'meio ambiente', 'leitura', 'matemática', etc.)."
+            "\nNão use temas genéricos como 'atividade', 'tema', 'imagem', 'educação' nem devolva frases."
         )
 
         if task_grade and isinstance(task_grade, str):
-            prompt_intro += f"\n\nEssa atividade é para alunos do {task_grade.strip()}."
+            prompt_intro += f"\n\nA série escolar do aluno é: {task_grade.strip()}."
 
         prompt = f"""{prompt_intro}
 
-Texto:
+Atividade:
 {texto_reduzido}
 
 Tema:"""
@@ -53,21 +27,35 @@ Tema:"""
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": "Você é um extrator de temas educacionais."},
+                {"role": "system", "content": "Você é um especialista em classificar temas de atividades educacionais de forma concisa e útil."},
                 {"role": "user", "content": prompt}
             ],
             temperature=0.2
         )
 
         tema = response.choices[0].message.content.strip().lower()
+        tema = re.sub(r"[^a-zA-Z0-9à-úÀ-ÚçÇ\s-]", "", tema)  # remove caracteres não úteis
 
-        # Normalização do tema
-        tema_normalizado = TEMA_NORMALIZADO.get(tema, tema)
+        # ⚠️ Fallback se tema for inválido
+        if tema in ["", "tema", "atividade", "imagem", "null", "none"]:
+            print(f"[TEMA] Tema inválido detectado: '{tema}'. Tentando extrair manualmente...")
 
-        if not tema_normalizado or tema_normalizado in ["tema", "atividade", "imagem", "null", "none"]:
-            print(f"[TEMA] Tema extraído inválido: '{tema}'")
+            palavras_chave = [
+                "golfinho", "tubarão", "polvo", "caranguejo", "estrela-do-mar", "baleia", "oceano",
+                "recifes", "mamíferos marinhos", "vida marinha", "animais aquáticos", "regeneração",
+                "peixes", "crustáceos", "biologia", "habitat", "água doce", "água salgada"
+            ]
+
+            texto_lower = texto_reduzido.lower()
+            for palavra in palavras_chave:
+                if palavra in texto_lower:
+                    print(f"[TEMA] Fallback manual encontrou: '{palavra}'")
+                    return palavra
+
+            print("[TEMA] Fallback manual também não encontrou tema útil.")
             return None
 
+        tema_normalizado = TEMA_NORMALIZADO.get(tema, tema)
         print(f"[TEMA] Tema extraído com sucesso: '{tema_normalizado}'")
         return tema_normalizado
 
