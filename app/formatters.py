@@ -22,20 +22,28 @@ def format_task_output_as_worksheet(task_id: str, all_results: list[dict], agent
         i += 1
 
     for idx, agente in enumerate(agents_run):
-        output.append(f"TRILHA {idx+1}\n" + "=" * 80 + "\n")
+        output.append(f"TRILHA {idx + 1}\n" + "=" * 80 + "\n")
 
         for atividade in atividades_por_trilha[idx]:
-            output.append(f"ATIVIDADE {atividade_index}\n")
-            output.append("🔊 " + atividade.get("texto", "") + "\n")
+            output.append(f"ATIVIDADE {atividade_index}")
+            atividade_index += 1
 
-            for opcao in atividade.get("opcoes", []):
-                output.append(opcao)
+            # 1. Texto
+            texto = atividade.get("texto", "").strip()
+            if texto:
+                output.append("🔊 " + texto)
 
+            # 2. Imagens
             imagens = atividade.get("imagens_url", [])
             for imagem in imagens:
                 output.append(f"🖼️ IMAGEM: {imagem}")
 
+            # 3. Opções
+            opcoes = atividade.get("opcoes", [])
+            for opcao in opcoes:
+                output.append(opcao)
+
+            # 4. Separador
             output.append("\n" + "-" * 80 + "\n")
-            atividade_index += 1
 
     return "\n".join(output).strip()
