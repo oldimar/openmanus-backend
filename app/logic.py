@@ -111,8 +111,8 @@ async def process_task(task_text, task_id):
         # ✅ Agora sim, parse apenas com dados úteis
         atividades = parse_task_output_into_structured_data(resultados_filtrados, agentes_filtrados)
 
-        # ✅ Adiciona imagens (múltiplas)
-        atividades_com_imagem = associate_images_to_activities(atividades)
+        # ✅ Adiciona imagens (múltiplas), agora com task_grade incluído
+        atividades_com_imagem = associate_images_to_activities(atividades, task_grade=task_grade)
 
         # ✅ Gera saída formatada (para DOCX e exibição)
         formatted_result = format_task_output_as_worksheet(task_id, atividades_com_imagem, agents_to_run)
