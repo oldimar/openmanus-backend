@@ -1,3 +1,4 @@
+import re
 def extract_activity_theme(texto_base: str, task_grade: str = "") -> str | None:
     try:
         texto_limpo = texto_base.strip()
