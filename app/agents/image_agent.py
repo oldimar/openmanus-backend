@@ -20,6 +20,7 @@ if not PIXABAY_API_KEY:
 else:
     print("[INFO] Chave do Pixabay carregada com sucesso.")
 
+
 def generate_image(task_description: str) -> str:
     try:
         response = client.images.generate(
@@ -33,7 +34,8 @@ def generate_image(task_description: str) -> str:
     except Exception as e:
         return f"Erro ao gerar imagem: {str(e)}"
 
-def fetch_image_from_pixabay(search_term: str) -> str:
+
+def fetch_image_from_pixabay(search_term: str, quantidade: int = 1) -> list[str]:
     try:
         search_term = (search_term or "").strip().lower()
 
@@ -53,33 +55,38 @@ def fetch_image_from_pixabay(search_term: str) -> str:
             "q": search_term_encoded,
             "image_type": "photo",
             "safesearch": "true",
-            "per_page": 5,
+            "per_page": quantidade,
             "lang": "pt"
         }
 
         print(f"[PIXABAY] Buscando imagem para: '{search_term}'")
 
         response = requests.get(url, params=params)
-
         if response.status_code != 200:
             raise Exception(f"Erro HTTP {response.status_code}")
 
         data = response.json()
 
-        # Se nenhum resultado, tenta com fallback
         if not data.get("hits"):
             print(f"[PIXABAY] Nenhum resultado para '{search_term}'. Tentando fallback '{fallback_term}'...")
-            return fetch_image_from_pixabay(fallback_term)
+            return fetch_image_from_pixabay(fallback_term, quantidade)
 
-        # Tenta retornar a primeira imagem válida
+        # Lista de imagens válidas
+        imagens = []
         for hit in data["hits"]:
             image_url = hit.get("largeImageURL") or hit.get("webformatURL")
             if image_url and image_url.startswith("http"):
-                print(f"[PIXABAY] Imagem encontrada: {image_url}")
-                return image_url
+                imagens.append(image_url)
+                if len(imagens) >= quantidade:
+                    break
+
+        if imagens:
+            print(f"[PIXABAY] {len(imagens)} imagem(ns) encontrada(s).")
+            return imagens
 
         raise Exception("Nenhuma imagem válida retornada.")
 
     except Exception as e:
         print(f"[PIXABAY] Erro ao buscar imagem: {str(e)}")
-        return "https://cdn.pixabay.com/photo/2020/12/09/20/07/education-5816931_1280.jpg"
+        # fallback em caso de falha geral
+        return ["https://cdn.pixabay.com/photo/2020/12/09/20/07/education-5816931_1280.jpg"]
