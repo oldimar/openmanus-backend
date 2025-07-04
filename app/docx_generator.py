@@ -2,7 +2,6 @@ from docx import Document
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 from docx.shared import Pt, Inches
 import os
-import re
 import requests
 from datetime import datetime
 
@@ -56,12 +55,11 @@ def generate_docx_from_result(task_id, task_result):
             para = doc.add_paragraph(texto)
             para.paragraph_format.space_after = Pt(10)
 
-        # 🔹 Imagens (após o texto, antes das opções)
-        for url in imagens:
-            if not url.startswith("http"):
-                continue
-            filename = os.path.join(temp_image_folder, os.path.basename(url.split("?")[0]))
-            if download_image(url, filename):
+        # 🔹 Imagem (apenas 1, logo após o texto)
+        primeira_imagem = next((url for url in imagens if url.startswith("http")), None)
+        if primeira_imagem:
+            filename = os.path.join(temp_image_folder, os.path.basename(primeira_imagem.split("?")[0]))
+            if download_image(primeira_imagem, filename):
                 try:
                     doc.add_paragraph()
                     doc.add_picture(filename, width=Inches(5))
