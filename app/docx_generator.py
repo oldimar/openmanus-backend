@@ -44,7 +44,7 @@ def generate_docx_from_result(task_id, task_result):
     trilha_count = 1
     for bloco in task_result:
         texto = bloco.get("texto", "").strip()
-        opcoes = bloco.get("opcoes", [])
+        opcoes = bloco.get("opcoes", []) or []
         imagens = bloco.get("imagens_url", []) or []
 
         # Título da trilha
@@ -56,18 +56,20 @@ def generate_docx_from_result(task_id, task_result):
             para = doc.add_paragraph(texto)
             para.paragraph_format.space_after = Pt(10)
 
-        # Opções
+        # Opções (bullets)
         for opcao in opcoes:
             doc.add_paragraph(opcao, style='List Bullet')
 
-        # Espaço para resposta (quando não houver opções)
+        # Espaço de resposta, se não tiver opções
         if not opcoes:
             for _ in range(3):
                 doc.add_paragraph("__" * 25)
 
-        # Imagens
+        # Inserção de imagens
         for url in imagens:
-            filename = os.path.join(temp_image_folder, os.path.basename(url).split("?")[0])
+            if not url.startswith("http"):
+                continue
+            filename = os.path.join(temp_image_folder, os.path.basename(url.split("?")[0]))
             if download_image(url, filename):
                 try:
                     doc.add_paragraph()
@@ -77,7 +79,7 @@ def generate_docx_from_result(task_id, task_result):
                 except Exception as e:
                     doc.add_paragraph(f"[Erro ao inserir imagem: {str(e)}]")
 
-        # Separador
+        # Separador visual
         doc.add_paragraph("\n" + ("-" * 100) + "\n")
 
     output_path = os.path.join(DOCX_FOLDER, f"{task_id}.docx")
