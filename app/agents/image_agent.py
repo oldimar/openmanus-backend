@@ -34,6 +34,26 @@ def generate_image(task_description: str) -> str:
         return f"Erro ao gerar imagem: {str(e)}"
 
 
+def traduzir_para_ingles(termo_pt: str) -> str:
+    """
+    Dicionário de traduções básicas PT → EN para termos que causam erro 400 na Pixabay.
+    """
+    mapa = {
+        "animais aquáticos": "aquatic animals",
+        "mamíferos marinhos": "marine mammals",
+        "peixe": "fish",
+        "peixes": "fish",
+        "tartaruga": "turtle",
+        "tartarugas marinhas": "sea turtles",
+        "golfinho": "dolphin",
+        "formação educacional": "education",
+        "ecossistema aquático": "aquatic ecosystem",
+        "relatório escolar": "school report",
+        "educação": "education"
+    }
+    return mapa.get(termo_pt.lower(), termo_pt)
+
+
 def fetch_image_from_pixabay(search_term: str, quantidade: int = 1) -> list[str]:
     try:
         search_term = (search_term or "").strip().lower()
@@ -43,20 +63,26 @@ def fetch_image_from_pixabay(search_term: str, quantidade: int = 1) -> list[str]
         if search_term in termos_invalidos or len(search_term) < 3:
             raise ValueError(f"Termo inválido para Pixabay: '{search_term}'")
 
-        # Termo de fallback mais amplo
-        fallback_term = "educação"
+        # Termo traduzido (Pixabay requer termos em inglês, mesmo com lang=pt)
+        translated_term = traduzir_para_ingles(search_term)
+        if translated_term != search_term:
+            print(f"[PIXABAY] Tradução aplicada: '{search_term}' → '{translated_term}'")
+        else:
+            print(f"[PIXABAY] Nenhuma tradução encontrada para '{search_term}', usando original.")
+
+        fallback_term = "education"
 
         url = "https://pixabay.com/api/"
         params = {
             "key": PIXABAY_API_KEY,
-            "q": search_term,  # ❗ Agora sem quote_plus
+            "q": translated_term,
             "image_type": "photo",
             "safesearch": "true",
             "per_page": quantidade,
             "lang": "pt"
         }
 
-        print(f"[PIXABAY] Buscando imagem para: '{search_term}'")
+        print(f"[PIXABAY] Buscando imagem para: '{translated_term}'")
 
         response = requests.get(url, params=params)
         if response.status_code != 200:
@@ -65,7 +91,7 @@ def fetch_image_from_pixabay(search_term: str, quantidade: int = 1) -> list[str]
         data = response.json()
 
         if not data.get("hits"):
-            print(f"[PIXABAY] Nenhum resultado para '{search_term}'. Tentando fallback '{fallback_term}'...")
+            print(f"[PIXABAY] Nenhum resultado para '{translated_term}'. Tentando fallback '{fallback_term}'...")
             return fetch_image_from_pixabay(fallback_term, quantidade)
 
         imagens = []
