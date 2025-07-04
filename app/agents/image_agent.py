@@ -1,6 +1,5 @@
 import os
 import requests
-import urllib.parse
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -47,12 +46,10 @@ def fetch_image_from_pixabay(search_term: str, quantidade: int = 1) -> list[str]
         # Termo de fallback mais amplo
         fallback_term = "educação"
 
-        # Montagem da URL
-        search_term_encoded = urllib.parse.quote_plus(search_term)
         url = "https://pixabay.com/api/"
         params = {
             "key": PIXABAY_API_KEY,
-            "q": search_term_encoded,
+            "q": search_term,  # ❗ Agora sem quote_plus
             "image_type": "photo",
             "safesearch": "true",
             "per_page": quantidade,
@@ -71,7 +68,6 @@ def fetch_image_from_pixabay(search_term: str, quantidade: int = 1) -> list[str]
             print(f"[PIXABAY] Nenhum resultado para '{search_term}'. Tentando fallback '{fallback_term}'...")
             return fetch_image_from_pixabay(fallback_term, quantidade)
 
-        # Lista de imagens válidas
         imagens = []
         for hit in data["hits"]:
             image_url = hit.get("largeImageURL") or hit.get("webformatURL")
@@ -88,5 +84,4 @@ def fetch_image_from_pixabay(search_term: str, quantidade: int = 1) -> list[str]
 
     except Exception as e:
         print(f"[PIXABAY] Erro ao buscar imagem: {str(e)}")
-        # fallback em caso de falha geral
         return ["https://cdn.pixabay.com/photo/2020/12/09/20/07/education-5816931_1280.jpg"]
