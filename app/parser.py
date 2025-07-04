@@ -4,11 +4,9 @@ def parse_task_output_into_structured_data(resultados, agentes):
     atividades = []
 
     for resultado, agente in zip(resultados, agentes):
-        # Quebra blocos grandes por delimitador do agente (---)
         blocos = re.split(r"\n---+\n", resultado)
 
         for bloco in blocos:
-            # Quebra por ATIVIDADE N (caso existam múltiplas no mesmo bloco)
             sub_blocos = re.split(r"\n?ATIVIDADE\s+\d+\n?", bloco, flags=re.IGNORECASE)
 
             for sub_bloco in sub_blocos:
@@ -27,13 +25,17 @@ def parse_task_output_into_structured_data(resultados, agentes):
                     if not linha:
                         continue
 
-                    # Imagem Markdown: ![desc](url)
+                    # Pular cabeçalhos de agentes
+                    if re.match(r"^Resultado do agente '.*?':$", linha):
+                        continue
+
+                    # Imagem Markdown
                     markdown_imgs = re.findall(r"!\[.*?\]\((https?://.*?)\)", linha)
                     if markdown_imgs:
                         atividade["imagens_url"].extend(markdown_imgs)
                         continue
 
-                    # Imagem HTML: <img src="...">
+                    # Imagem HTML
                     html_imgs = re.findall(r'<img\s+[^>]*src=["\'](https?://.*?)["\']', linha)
                     if html_imgs:
                         atividade["imagens_url"].extend(html_imgs)
@@ -44,28 +46,30 @@ def parse_task_output_into_structured_data(resultados, agentes):
                         atividade["imagens_url"].append(linha)
                         continue
 
-                    # Alternativas (padrões conhecidos)
+                    # Alternativas
                     try:
-                        if re.match(r"^\(\s?[A-Za-z0-9]+\)", linha):  # (A), (1), etc
+                        if re.match(r"^\(\s?\)", linha):                      # ( )
                             atividade["opcoes"].append(linha)
-                        elif re.match(r"^[A-Da-d]\)", linha):        # A) ...
+                        elif re.match(r"^\(\s?[A-Za-z0-9]+\)", linha):        # (A), (1)
                             atividade["opcoes"].append(linha)
-                        elif re.match(r"^[0-9]+\.", linha):          # 1.
+                        elif re.match(r"^[A-Da-d]\)", linha):                 # A)
                             atividade["opcoes"].append(linha)
-                        elif re.match(r"^[-*•+]\s", linha):          # - texto
+                        elif re.match(r"^[0-9]+\.", linha):                   # 1.
+                            atividade["opcoes"].append(linha)
+                        elif re.match(r"^[-*•+]\s", linha):                   # - texto
                             atividade["opcoes"].append(linha)
                         else:
-                            # Não é uma opção, adiciona ao texto
                             atividade["texto"] += linha + "\n"
                     except re.error as e:
                         print(f"[parser] Erro de regex: {linha} => {e}")
                         atividade["texto"] += linha + "\n"
 
-                # Limpeza e organização
+                # Limpeza
                 atividade["texto"] = atividade["texto"].strip()
                 atividade["opcoes"] = [op.strip() for op in atividade["opcoes"]]
-                atividade["imagens_url"] = list(set(atividade["imagens_url"]))  # remove duplicatas
+                atividade["imagens_url"] = list(set(atividade["imagens_url"]))
 
+                # Evita salvar "atividade" vazia com apenas cabeçalho ou ruído
                 if atividade["texto"] or atividade["opcoes"] or atividade["imagens_url"]:
                     atividades.append(atividade)
 
