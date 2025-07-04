@@ -1,49 +1,41 @@
 import re
-from typing import List
 
-def parse_task_output_into_structured_data(results: List[str], agents_run: List[str]) -> List[dict]:
-    """
-    Converte a saída bruta dos agentes (write, report, code) em uma estrutura com:
-    - texto: str
-    - opcoes: list[str]
-    - imagens_url: list[str]
-    """
+def parse_task_output_into_structured_data(resultados, agentes):
     atividades = []
 
-    for result in results:
-        blocos = re.split(r"\n---+\n", result)
+    for resultado in resultados:
+        blocos = re.split(r"\n---+\n", resultado)
 
         for bloco in blocos:
-            texto_principal = []
-            opcoes = []
-            imagens = []
+            linhas = bloco.strip().split("\n")
+            atividade = {"texto": "", "opcoes": [], "imagens_url": []}
 
-            linhas = bloco.strip().splitlines()
             for linha in linhas:
                 linha = linha.strip()
-
-                # Ignora cabeçalhos repetitivos
-                if re.match(r"^Resultado do agente '.*?':", linha):
+                if not linha:
                     continue
 
-                # Detecta opções ( ) ou listas com - a) / b)
-                if re.match(r"^\( ?[a-dA-D1-4]?[\)]|[-•*] ?[a-dA-D1-4]\)|\(\d+\))", linha):
-                    opcoes.append(f"( ) {linha.strip('-•* ').strip()}")
+                # Detectar URLs de imagem
+                if re.match(r"^https?://.*\\.(png|jpg|jpeg)$", linha, re.IGNORECASE):
+                    atividade["imagens_url"].append(linha)
                     continue
 
-                # Detecta links de imagem
-                if re.search(r"https?://.*\.(jpg|jpeg|png|gif)", linha):
-                    urls = re.findall(r"https?://[^\s]+\.(?:jpg|jpeg|png|gif)", linha)
-                    imagens.extend(urls)
-                    continue
+                # Detectar alternativas
+                try:
+                    if re.match(r"^(\(\ )|[-*•])", linha):
+                        atividade["opcoes"].append(linha)
+                    elif re.match(r"^\([a-dA-D]\)|^\([0-9]+\)|^[a-dA-D]\)|^[0-9]+\.", linha):
+                        atividade["opcoes"].append(linha)
+                    else:
+                        if atividade["texto"]:
+                            atividade["texto"] += "\n" + linha
+                        else:
+                            atividade["texto"] = linha
+                except re.error as e:
+                    print(f"[parser] Erro ao processar linha com regex: {linha} | Erro: {str(e)}")
+                    atividade["texto"] += "\n" + linha
 
-                texto_principal.append(linha)
-
-            if texto_principal:
-                atividades.append({
-                    "texto": " ".join(texto_principal).strip(),
-                    "opcoes": opcoes,
-                    "imagens_url": imagens
-                })
+            if atividade["texto"] or atividade["opcoes"] or atividade["imagens_url"]:
+                atividades.append(atividade)
 
     return atividades
