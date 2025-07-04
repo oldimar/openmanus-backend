@@ -69,6 +69,7 @@ def fetch_image_from_pixabay(search_term: str, quantidade: int = 1, tentativas: 
         params = {
             "key": PIXABAY_API_KEY,
             "q": translated_term,
+            "lang": "pt",  # 🔧 adicione essa linha
             "image_type": "photo",
             "safesearch": "true",
             "per_page": max(3, quantidade)  # mínimo exigido pela API do Pixabay
