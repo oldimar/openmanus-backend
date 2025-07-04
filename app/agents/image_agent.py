@@ -71,7 +71,7 @@ def fetch_image_from_pixabay(search_term: str, quantidade: int = 1, tentativas: 
             "q": translated_term,
             "image_type": "photo",
             "safesearch": "true",
-            "per_page": quantidade
+            "per_page": max(3, quantidade)  # mínimo exigido pela API do Pixabay
         }
 
         print(f"[PIXABAY] Buscando imagem para: '{translated_term}'")
