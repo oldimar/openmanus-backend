@@ -56,7 +56,7 @@ def generate_docx_from_result(task_id, task_result):
             para = doc.add_paragraph(texto)
             para.paragraph_format.space_after = Pt(10)
 
-        # 🔹 Imagens (logo abaixo do texto)
+        # 🔹 Imagens (após o texto, antes das opções)
         for url in imagens:
             if not url.startswith("http"):
                 continue
@@ -66,11 +66,13 @@ def generate_docx_from_result(task_id, task_result):
                     doc.add_paragraph()
                     doc.add_picture(filename, width=Inches(5))
                     doc.paragraphs[-1].alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-                    doc.add_paragraph("[Imagem ilustrativa da atividade]").alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+                    caption = doc.add_paragraph("[Imagem ilustrativa da atividade]")
+                    caption.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+                    caption.paragraph_format.space_after = Pt(10)
                 except Exception as e:
                     doc.add_paragraph(f"[Erro ao inserir imagem: {str(e)}]")
 
-        # 🔹 Opções (ou linhas de resposta)
+        # 🔹 Opções (bullets ou linhas de resposta)
         if opcoes:
             for opcao in opcoes:
                 doc.add_paragraph(opcao, style='List Bullet')
