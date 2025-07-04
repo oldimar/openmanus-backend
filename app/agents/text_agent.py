@@ -26,24 +26,29 @@ TEMA_NORMALIZADO = {
 }
 
 
-def extract_activity_theme(texto_base: str) -> str | None:
+def extract_activity_theme(texto_base: str, task_grade: str = "") -> str | None:
     try:
         texto_limpo = texto_base.strip()
-
         texto_reduzido = re.sub(r"(Resultado do agente '.*?':|---+)", "", texto_limpo).strip()
 
         if not texto_reduzido or len(texto_reduzido.split()) < 5:
             print("[TEMA] Erro ao extrair tema: Texto insuficiente após limpeza.")
             return None
 
-        prompt = f"""
-        Abaixo está a descrição de uma atividade educacional. Extraia apenas um tema curto e representativo (máximo 3 palavras), como "meio ambiente", "vocabulário", "cidadania", etc.
+        prompt_intro = (
+            "Abaixo está a descrição de uma atividade educacional. "
+            "Extraia apenas um tema curto e representativo (máximo 3 palavras), como \"meio ambiente\", \"vocabulário\", \"cidadania\", etc."
+        )
 
-        Texto:
-        {texto_reduzido}
+        if task_grade and isinstance(task_grade, str):
+            prompt_intro += f"\n\nEssa atividade é para alunos do {task_grade.strip()}."
 
-        Tema:
-        """
+        prompt = f"""{prompt_intro}
+
+Texto:
+{texto_reduzido}
+
+Tema:"""
 
         response = client.chat.completions.create(
             model="gpt-4o",
