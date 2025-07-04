@@ -47,25 +47,16 @@ def generate_docx_from_result(task_id, task_result):
         opcoes = bloco.get("opcoes", []) or []
         imagens = bloco.get("imagens_url", []) or []
 
-        # Título da trilha
+        # 🔹 Título da trilha
         doc.add_heading(f'Trilha {trilha_count}', level=1)
         trilha_count += 1
 
-        # Enunciado
+        # 🔹 Enunciado
         if texto:
             para = doc.add_paragraph(texto)
             para.paragraph_format.space_after = Pt(10)
 
-        # Opções (bullets)
-        for opcao in opcoes:
-            doc.add_paragraph(opcao, style='List Bullet')
-
-        # Espaço de resposta, se não tiver opções
-        if not opcoes:
-            for _ in range(3):
-                doc.add_paragraph("__" * 25)
-
-        # Inserção de imagens
+        # 🔹 Imagens (logo abaixo do texto)
         for url in imagens:
             if not url.startswith("http"):
                 continue
@@ -79,7 +70,15 @@ def generate_docx_from_result(task_id, task_result):
                 except Exception as e:
                     doc.add_paragraph(f"[Erro ao inserir imagem: {str(e)}]")
 
-        # Separador visual
+        # 🔹 Opções (ou linhas de resposta)
+        if opcoes:
+            for opcao in opcoes:
+                doc.add_paragraph(opcao, style='List Bullet')
+        else:
+            for _ in range(3):
+                doc.add_paragraph("__" * 25)
+
+        # 🔹 Separador visual
         doc.add_paragraph("\n" + ("-" * 100) + "\n")
 
     output_path = os.path.join(DOCX_FOLDER, f"{task_id}.docx")
