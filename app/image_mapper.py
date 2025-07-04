@@ -2,7 +2,7 @@ import random
 from app.agents.image_agent import fetch_image_from_pixabay
 from app.agents.text_agent import extract_activity_theme  # IA para extrair tema da atividade
 
-def associate_images_to_activities(atividades: list[dict], max_com_imagem: int = 4) -> list[dict]:
+def associate_images_to_activities(atividades: list[dict], max_com_imagem: int = 4, task_grade: str = "") -> list[dict]:
     """
     Escolhe até `max_com_imagem` atividades e associa imagens temáticas a elas.
     Agora suporta múltiplas imagens por atividade.
@@ -21,7 +21,8 @@ def associate_images_to_activities(atividades: list[dict], max_com_imagem: int =
         if atividade in escolhidas:
             texto_base = atividade.get("texto", "")
             try:
-                tema = extract_activity_theme(texto_base)
+                # Agora passando também o grau/série da turma
+                tema = extract_activity_theme(texto_base, task_grade=task_grade)
                 urls = fetch_image_from_pixabay(tema, quantidade=2)  # busca até 2 imagens
                 if urls:
                     atividade["imagens_url"] = urls
