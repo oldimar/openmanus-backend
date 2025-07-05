@@ -95,14 +95,22 @@ A atividade gerada deve ser estruturada como JSON com os seguintes campos:
         temperature=0.5
     )
 
-    content = response.choices[0].message.content.strip()
+        content = response.choices[0].message.content.strip()
+
+    if not content:
+        print("[WRITE_AGENT] ⚠️ Resposta vazia da IA.")
+        return {
+            "titulo": "ATIVIDADE GERADA",
+            "instrucao": "🔊 A IA não retornou nenhuma atividade.",
+            "opcoes": ["( ) Alternativa 1", "( ) Alternativa 2"]
+        }
+
     try:
-        import json
         return json.loads(content)
     except Exception as e:
         print(f"[WRITE_AGENT] ❌ Erro ao interpretar JSON: {e}")
         return {
-            "titulo": "ATIVIDADE",
-            "instrucao": "🔊 Atividade gerada, mas o formato não pôde ser interpretado automaticamente.",
+            "titulo": "ATIVIDADE MALFORMADA",
+            "instrucao": "🔊 A IA gerou uma resposta, mas ela não pôde ser interpretada como JSON.",
             "opcoes": [content]
         }
