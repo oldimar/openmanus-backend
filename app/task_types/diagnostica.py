@@ -1,34 +1,36 @@
-from app.agents.plan_agent import generate_plan
+from app.agents.plan_agent import generate_activity_plan
 from app.agents.image_agent import generate_image
 from app.agents.write_agent import generate_text_from_activity
-from app.parser import parse_task_output_into_structured_data
+from app.atividade_schema import Atividade
 
+def gerar_atividades_diagnosticas(task_prompt: str, task_grade: str = "2º ano") -> list:
+    plan = generate_activity_plan(task_prompt, task_grade)
 
-def gerar_atividades_diagnosticas(prompt: str, task_grade: str = "") -> list[dict]:
-    # Passo 1: gerar o plano com base no prompt
-    plano = generate_plan(prompt)
-    if not isinstance(plano, list) or not plano:
-        raise ValueError("❌ Plano de atividades retornou vazio ou inválido.")
+    if not isinstance(plan, list) or len(plan) == 0:
+        raise Exception("❌ Plano de atividades retornou vazio ou inválido.")
 
-    # Passo 2: gerar imagens, se necessário
-    descricoes_para_imagem = [a["descricao"] for a in plano if a.get("com_imagem")]
-    imagens = generate_image(descricoes_para_imagem) if descricoes_para_imagem else []
-    if not isinstance(imagens, list):
-        imagens = []
+    descricoes_com_imagem = [a["descricao"] for a in plan if a.get("com_imagem")]
+    imagens_geradas = generate_image(descricoes_com_imagem) if descricoes_com_imagem else []
 
-    # Passo 3: gerar as atividades com ou sem imagem
     atividades = []
-    img_idx = 0
-    for item in plano:
-        descricao = item.get("descricao", "")
-        com_imagem = item.get("com_imagem", False)
-        imagem_url = imagens[img_idx] if com_imagem and img_idx < len(imagens) else None
-        if com_imagem:
-            img_idx += 1
+    imagem_index = 0
 
-        atividade_json = generate_text_from_activity(descricao, imagem_url)
-        if isinstance(atividade_json, dict):
-            atividade_parseada = parse_task_output_into_structured_data([atividade_json], ["write"])
-            atividades.extend(atividade_parseada)
+    for atividade in plan:
+        descricao = atividade.get("descricao", "")
+        com_imagem = atividade.get("com_imagem", False)
+        imagem_url = imagens_geradas[imagem_index] if com_imagem and imagem_index < len(imagens_geradas) else None
+
+        if com_imagem:
+            imagem_index += 1
+
+        atividade_gerada = generate_text_from_activity(descricao, imagem_url)
+        atividades.append(atividade_gerada)
+
+    # (opcional) validação usando schema
+    for idx, atividade in enumerate(atividades):
+        try:
+            Atividade(**atividade)
+        except Exception as e:
+            print(f"[VALIDAÇÃO] Atividade {idx + 1} inválida:", e)
 
     return atividades
