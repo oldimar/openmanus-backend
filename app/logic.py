@@ -13,7 +13,6 @@ from app.agents.image_agent import generate_image
 from app.agents.task_router_agent import decide_agents
 
 from app.ocr_reader import extract_text_from_pdf
-from app.image_mapper import associate_images_to_activities
 from app.formatters import format_task_output_as_worksheet
 from app.parser import parse_task_output_into_structured_data
 
@@ -28,7 +27,6 @@ def extrair_numero_atividades(descricao: str, default: int = 5) -> int:
     if match:
         return int(match.group(1))
     return default
-
 
 async def process_task(task_text, task_id):
     tasks[task_id] = {"status": "processing", "result": None, "structured_result": None}
@@ -70,73 +68,48 @@ async def process_task(task_text, task_id):
 
         quantidade_atividades = extrair_numero_atividades(task_description)
 
-        all_results = []
-        agents_to_run = []
+        # ---------- FLUXO PRINCIPAL ----------
+        plan_result = generate_plan(final_prompt)
 
-        if task_type:
-            if task_type == "plan":
-                agents_to_run = ["plan", "write", "report", "code", "image"]
-                for agent in agents_to_run:
-                    try:
-                        agent_result = run_agent_by_type(agent, final_prompt, quantidade_atividades)
-                        if isinstance(agent_result, (list, dict)):
-                            all_results.append(agent_result)
-                        else:
-                            all_results.append(f"Resultado do agente '{agent}':\n{agent_result}\n\n---\n")
-                    except Exception as e:
-                        all_results.append(f"[Erro ao rodar o agente '{agent}': {str(e)}]")
-            else:
-                try:
-                    result = run_agent_by_type(task_type, final_prompt, quantidade_atividades)
-                    if isinstance(result, (list, dict)):
-                        all_results.append(result)
-                    else:
-                        all_results.append(f"Resultado do agente '{task_type}':\n{result}\n\n---\n")
-                    agents_to_run = [task_type]
-                except Exception as e:
-                    all_results.append(f"[Erro ao rodar o agente '{task_type}': {str(e)}]")
-        else:
-            agents_to_run = decide_agents(final_prompt)
-            for agent in agents_to_run:
-                try:
-                    agent_result = run_agent_by_type(agent, final_prompt, quantidade_atividades)
-                    if isinstance(agent_result, (list, dict)):
-                        all_results.append(agent_result)
-                    else:
-                        all_results.append(f"Resultado do agente '{agent}':\n{agent_result}\n\n---\n")
-                except Exception as e:
-                    all_results.append(f"[Erro ao rodar o agente '{agent}': {str(e)}]")
+        if not isinstance(plan_result, list):
+            raise Exception("Resposta inválida do agente plan. Esperado: lista de atividades.")
 
-        # Geração de full_result apenas com strings
-        full_result = "\n".join([r if isinstance(r, str) else json.dumps(r, ensure_ascii=False) for r in all_results])
+        descricoes_com_imagem = [a["descricao"] for a in plan_result if a.get("com_imagem")]
+        imagens_geradas = []
 
-        if full_result is None or full_result.strip() == "":
-            tasks[task_id]["status"] = "error"
-            tasks[task_id]["result"] = "Erro: Nenhum resultado foi gerado por nenhum agente."
-            return tasks[task_id]["result"]
+        if descricoes_com_imagem:
+            imagens_geradas = generate_image(descricoes_com_imagem)
+            if not isinstance(imagens_geradas, list):
+                raise Exception("Resposta inválida do agente image. Esperado: lista de URLs.")
 
-        agentes_validos = {"write", "report", "code"}
-        resultados_filtrados = []
-        agentes_filtrados = []
+        atividades_estruturadas = []
+        imagem_index = 0
 
-        for a, r in zip(agents_to_run, all_results):
-            if a in agentes_validos:
-                agentes_filtrados.append(a)
-                resultados_filtrados.append(r)
+        for atividade in plan_result:
+            descricao = atividade.get("descricao", "")
+            com_imagem = atividade.get("com_imagem", False)
+            imagem_url = imagens_geradas[imagem_index] if com_imagem and imagem_index < len(imagens_geradas) else None
 
-        atividades = parse_task_output_into_structured_data(resultados_filtrados, agentes_filtrados)
-        atividades_com_imagem = associate_images_to_activities(atividades, task_grade=task_grade)
-        formatted_result = format_task_output_as_worksheet(task_id, atividades_com_imagem, agents_to_run)
+            if com_imagem:
+                imagem_index += 1
+
+            atividade_gerada = generate_text(descricao, imagem_url=imagem_url)
+            atividades_estruturadas.append(atividade_gerada)
+
+        full_result = json.dumps(atividades_estruturadas, ensure_ascii=False, indent=2)
+
+        atividades_final = parse_task_output_into_structured_data(atividades_estruturadas, agentes=["write"])
+        resultado_formatado = format_task_output_as_worksheet(task_id, atividades_final, agents_run=["plan", "image", "write"])
 
         tasks[task_id]["result"] = full_result
-        tasks[task_id]["structured_result"] = atividades_com_imagem
+        tasks[task_id]["structured_result"] = atividades_final
         tasks[task_id]["status"] = "done"
 
         save_task_log(
             task_id=task_id,
             task_data=task_data,
-            agents_run=agents_to_run,
-            results=tasks[task_id]["result"]
+            agents_run=["plan", "image", "write"],
+            results=full_result
         )
 
     except Exception as e:
@@ -145,7 +118,6 @@ async def process_task(task_text, task_id):
         save_task_log(task_id, task_data, [], tasks[task_id]["result"])
 
     return tasks[task_id]["result"], tasks[task_id]["structured_result"]
-
 
 def run_agent_by_type(agent_type, prompt_text, quantidade_atividades=5):
     if agent_type == "plan":
@@ -161,7 +133,6 @@ def run_agent_by_type(agent_type, prompt_text, quantidade_atividades=5):
     else:
         raise Exception(f"Agente desconhecido: '{agent_type}'")
 
-
 async def save_uploaded_file(file):
     folder_name = datetime.now().strftime("%Y%m%d_%H%M%S")
     folder_path = os.path.join(UPLOAD_FOLDER, folder_name)
@@ -170,7 +141,6 @@ async def save_uploaded_file(file):
     with open(file_location, "wb") as f:
         f.write(await file.read())
     return {"task_id_files": folder_name, "filename": file.filename, "message": "File uploaded successfully"}
-
 
 async def save_uploaded_files(files):
     folder_name = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -183,7 +153,6 @@ async def save_uploaded_files(files):
             f.write(await file.read())
         saved_files.append(file.filename)
     return {"task_id_files": folder_name, "filenames": saved_files, "message": "Files uploaded successfully"}
-
 
 def save_task_log(task_id, task_data, agents_run, results):
     try:
