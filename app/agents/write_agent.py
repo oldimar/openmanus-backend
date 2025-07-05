@@ -6,9 +6,10 @@ load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
-def generate_text(task_description: str):
+
+def generate_text(task_description: str, quantidade_atividades: int = 5):
     prompt = f"""
-Você é um professor do 2º ano do ensino fundamental. Gere 3 atividades pedagógicas curtas e claras para crianças de aproximadamente 7 anos, com base no seguinte pedido do usuário:
+Você é um professor do 2º ano do ensino fundamental. Gere {quantidade_atividades} atividades pedagógicas curtas e claras para crianças de aproximadamente 7 anos, com base no seguinte pedido do usuário:
 
 "{task_description}"
 
@@ -24,15 +25,15 @@ Cada atividade deve conter:
 Formato esperado (sem explicações, apenas texto direto):
 
 ATIVIDADE 1  
-🔊 LEIA O TEXTO ABAIXO E ESCOLHA A RESPOSTA CERTA.  
+🔊 INSTRUÇÃO DA ATIVIDADE  
 ( ) ALTERNATIVA A  
 ( ) ALTERNATIVA B  
 ( ) ALTERNATIVA C  
 ( ) ALTERNATIVA D  
 
-[Repita para Atividade 2 e 3]
+[Repita até ATIVIDADE {quantidade_atividades}]
 
-Comece agora. Gere apenas as 3 atividades, sem comentários nem introduções.
+Comece agora. Gere apenas as {quantidade_atividades} atividades, sem comentários nem introduções.
     """
 
     response = client.chat.completions.create(
