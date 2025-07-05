@@ -1,4 +1,5 @@
 import os
+import json
 from dotenv import load_dotenv
 from openai import OpenAI
 
@@ -34,8 +35,7 @@ Formato de saída JSON esperado:
       "( ) alternativa C",
       "( ) alternativa D"
     ]
-  }},
-  ...
+  }}
 ]
 
 ❗ Gere apenas o JSON bruto, sem explicações, sem texto fora do JSON.
@@ -55,23 +55,22 @@ Formato de saída JSON esperado:
 
 def generate_text_from_activity(descricao: str, imagem_url: str = None) -> dict:
     """
-    Nova função — gera uma única atividade baseada em descrição e imagem (se houver).
-    Retorna um dicionário com os campos da atividade.
+    Gera uma única atividade com base na descrição e, se houver, na imagem.
+    Retorna um dicionário estruturado ou fallback.
     """
     prompt = f"""
 Você é um gerador de atividades interativas para alunos de 6 a 9 anos.
 
-Gere **uma única atividade** com base na seguinte descrição:
+Gere uma única atividade com base na seguinte descrição:
 "{descricao}"
 """
 
     if imagem_url:
-        prompt += f'\nA atividade deve considerar e fazer referência à seguinte imagem ilustrativa: {imagem_url}'
+        prompt += f'\nA atividade deve fazer referência à imagem: {imagem_url}'
 
     prompt += """
 
-A atividade gerada deve ser estruturada como JSON com os seguintes campos:
-
+Formato de saída:
 {
   "titulo": "ATIVIDADE 1",
   "instrucao": "🔊 [instrução curta e clara]",
@@ -83,35 +82,36 @@ A atividade gerada deve ser estruturada como JSON com os seguintes campos:
   ]
 }
 
-❗ Gere apenas o JSON bruto, sem explicações extras.
+❗ Gere apenas o JSON puro. Sem explicações ou comentários.
 """
 
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": "Você gera atividades educativas para crianças e responde apenas em JSON."},
-            {"role": "user", "content": prompt.strip()}
-        ],
-        temperature=0.5
-    )
-
-    content = response.choices[0].message.content.strip()
-
-    if not content:
-        print("[WRITE_AGENT] ⚠️ Resposta vazia da IA.")
-        return {
-            "titulo": "ATIVIDADE GERADA",
-            "instrucao": "🔊 A IA não retornou nenhuma atividade.",
-            "opcoes": ["( ) Alternativa 1", "( ) Alternativa 2"]
-        }
-
     try:
-        import json
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": "Você gera atividades educativas para crianças e responde apenas em JSON."},
+                {"role": "user", "content": prompt.strip()}
+            ],
+            temperature=0.5
+        )
+
+        content = response.choices[0].message.content.strip()
+        print("[WRITE_AGENT] Conteúdo da IA:", content)
+
+        if not content:
+            print("[WRITE_AGENT] ⚠️ Resposta vazia.")
+            return {
+                "titulo": "ATIVIDADE VAZIA",
+                "instrucao": "🔊 A IA não retornou nenhuma instrução.",
+                "opcoes": ["( ) A", "( ) B"]
+            }
+
         return json.loads(content)
+
     except Exception as e:
         print(f"[WRITE_AGENT] ❌ Erro ao interpretar JSON: {e}")
         return {
             "titulo": "ATIVIDADE MALFORMADA",
-            "instrucao": "🔊 A IA gerou uma resposta, mas ela não pôde ser interpretada como JSON.",
-            "opcoes": [content]
+            "instrucao": "🔊 A IA gerou uma resposta que não pôde ser interpretada como JSON.",
+            "opcoes": ["( ) alternativa malformada", "( ) conteúdo bruto"]
         }
