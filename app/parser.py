@@ -17,13 +17,20 @@ def parse_task_output_into_structured_data(resultados, agentes):
                     if "instrucao" in item:
                         texto += item["instrucao"]
 
+                    opcoes_raw = item.get("opcoes", [])
+                    if isinstance(opcoes_raw, list):
+                        opcoes = [str(op).strip() for op in opcoes_raw]
+                    else:
+                        print(f"[parser] ⚠️ Opções ignoradas: tipo inválido ({type(opcoes_raw)}), esperava lista.")
+                        opcoes = []
+
                     atividade = {
                         "texto": texto.strip(),
-                        "opcoes": item.get("opcoes", []),
+                        "opcoes": opcoes,
                         "imagens_url": []
                     }
                     atividades.append(atividade)
-                continue  # ✅ Já processado como JSON, pula para próximo resultado
+                continue
             except Exception as e:
                 print(f"[parser] Erro ao tentar interpretar JSON estruturado: {e}")
 
