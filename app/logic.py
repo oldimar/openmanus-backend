@@ -92,8 +92,9 @@ async def process_task(task_text, task_id):
             save_task_log(task_id=task_id, task_data=task_data, agents_run=["trilha"], results=tasks[task_id]["result"])
             return tasks[task_id]["result"], tasks[task_id]["structured_result"]
 
-        # 🔁 FLUXO ORIGINAL — plan → image → write
-        plan_result = generate_plan(final_prompt)
+        # 🔁 FLUXO ORIGINAL — generate_activity_plan → image → write
+        from app.agents.plan_agent import generate_activity_plan
+        plan_result = generate_activity_plan(final_prompt, task_grade)
 
         if not isinstance(plan_result, list):
             raise Exception("Resposta inválida do agente plan. Esperado: lista de atividades.")
