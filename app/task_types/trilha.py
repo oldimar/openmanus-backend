@@ -1,9 +1,8 @@
-# task_types/trilha.py
+# app/task_types/trilha.py
 
 from app.agents.plan_agent import generate_activity_plan
 from app.agents.image_agent import generate_images_from_list
 from app.agents.write_agent import generate_text_from_activity
-from app.parser import parse_task_output_into_structured_data
 
 def gerar_atividades_trilha(task_description: str, task_grade: str = "2º ano do ensino fundamental"):
     """
@@ -36,5 +35,4 @@ def gerar_atividades_trilha(task_description: str, task_grade: str = "2º ano do
         atividade_gerada = generate_text_from_activity(descricao, imagem_url)
         atividades_cruas.append(atividade_gerada)
 
-    atividades = parse_task_output_into_structured_data(atividades_cruas, agentes=["write"])
-    return atividades
+    return atividades_cruas
