@@ -95,7 +95,7 @@ A atividade gerada deve ser estruturada como JSON com os seguintes campos:
         temperature=0.5
     )
 
-        content = response.choices[0].message.content.strip()
+    content = response.choices[0].message.content.strip()
 
     if not content:
         print("[WRITE_AGENT] ⚠️ Resposta vazia da IA.")
@@ -106,6 +106,7 @@ A atividade gerada deve ser estruturada como JSON com os seguintes campos:
         }
 
     try:
+        import json
         return json.loads(content)
     except Exception as e:
         print(f"[WRITE_AGENT] ❌ Erro ao interpretar JSON: {e}")
