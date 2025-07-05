@@ -22,11 +22,13 @@ tasks = {}
 UPLOAD_FOLDER = "uploads"
 model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
+
 def extrair_numero_atividades(descricao: str, default: int = 5) -> int:
     match = re.search(r"\b(\d+)\s+(atividades|questões|perguntas|exercícios)", descricao.lower())
     if match:
         return int(match.group(1))
     return default
+
 
 async def process_task(task_text, task_id):
     tasks[task_id] = {"status": "processing", "result": None, "structured_result": None}
@@ -68,7 +70,18 @@ async def process_task(task_text, task_id):
 
         quantidade_atividades = extrair_numero_atividades(task_description)
 
-        # ---------- FLUXO PRINCIPAL ----------
+        # ✅ NOVO FLUXO — TAREFA DO TIPO 'diagnostica'
+        if task_type == "diagnostica":
+            from task_types.diagnostica import gerar_atividades_diagnosticas
+            atividades = gerar_atividades_diagnosticas(final_prompt, task_grade)
+            formatted_result = format_task_output_as_worksheet(task_id, atividades, ["diagnostica"])
+            tasks[task_id]["result"] = json.dumps(atividades, ensure_ascii=False, indent=2)
+            tasks[task_id]["structured_result"] = atividades
+            tasks[task_id]["status"] = "done"
+            save_task_log(task_id=task_id, task_data=task_data, agents_run=["diagnostica"], results=tasks[task_id]["result"])
+            return tasks[task_id]["result"], tasks[task_id]["structured_result"]
+
+        # 🔁 FLUXO ORIGINAL — plan → image → write
         plan_result = generate_plan(final_prompt)
 
         if not isinstance(plan_result, list):
@@ -119,6 +132,7 @@ async def process_task(task_text, task_id):
 
     return tasks[task_id]["result"], tasks[task_id]["structured_result"]
 
+
 def run_agent_by_type(agent_type, prompt_text, quantidade_atividades=5):
     if agent_type == "plan":
         return generate_plan(prompt_text)
@@ -133,6 +147,7 @@ def run_agent_by_type(agent_type, prompt_text, quantidade_atividades=5):
     else:
         raise Exception(f"Agente desconhecido: '{agent_type}'")
 
+
 async def save_uploaded_file(file):
     folder_name = datetime.now().strftime("%Y%m%d_%H%M%S")
     folder_path = os.path.join(UPLOAD_FOLDER, folder_name)
@@ -141,6 +156,7 @@ async def save_uploaded_file(file):
     with open(file_location, "wb") as f:
         f.write(await file.read())
     return {"task_id_files": folder_name, "filename": file.filename, "message": "File uploaded successfully"}
+
 
 async def save_uploaded_files(files):
     folder_name = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -153,6 +169,7 @@ async def save_uploaded_files(files):
             f.write(await file.read())
         saved_files.append(file.filename)
     return {"task_id_files": folder_name, "filenames": saved_files, "message": "Files uploaded successfully"}
+
 
 def save_task_log(task_id, task_data, agents_run, results):
     try:
