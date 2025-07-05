@@ -1,4 +1,4 @@
-import os
+import os 
 import requests
 from openai import OpenAI
 from dotenv import load_dotenv
@@ -32,6 +32,23 @@ def generate_image(task_description: str) -> str:
         return image_url
     except Exception as e:
         return f"Erro ao gerar imagem: {str(e)}"
+
+
+def generate_images_from_list(descriptions: list[str]) -> list[str]:
+    """
+    Recebe uma lista de descrições e gera uma imagem para cada uma,
+    retornando uma lista de URLs na mesma ordem.
+    """
+    urls = []
+    for i, desc in enumerate(descriptions):
+        print(f"[IMAGE_AGENT] Gerando imagem {i+1}/{len(descriptions)}: '{desc[:50]}...'")
+        try:
+            url = generate_image(desc)
+            urls.append(url)
+        except Exception as e:
+            print(f"[IMAGE_AGENT] ❌ Erro ao gerar imagem para '{desc}': {e}")
+            urls.append("https://cdn.pixabay.com/photo/2020/12/09/20/07/education-5816931_1280.jpg")
+    return urls
 
 
 def traduzir_para_ingles(termo_pt: str) -> str:
@@ -69,10 +86,10 @@ def fetch_image_from_pixabay(search_term: str, quantidade: int = 1, tentativas: 
         params = {
             "key": PIXABAY_API_KEY,
             "q": translated_term,
-            "lang": "pt",  # 🔧 adicione essa linha
+            "lang": "pt",
             "image_type": "photo",
             "safesearch": "true",
-            "per_page": max(3, quantidade)  # mínimo exigido pela API do Pixabay
+            "per_page": max(3, quantidade)
         }
 
         print(f"[PIXABAY] Buscando imagem para: '{translated_term}'")
