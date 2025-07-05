@@ -23,7 +23,6 @@ tasks = {}
 UPLOAD_FOLDER = "uploads"
 model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
-
 def extrair_numero_atividades(descricao: str, default: int = 5) -> int:
     match = re.search(r"\b(\d+)\s+(atividades|questões|perguntas|exercícios)", descricao.lower())
     if match:
@@ -41,7 +40,6 @@ async def process_task(task_text, task_id):
         task_id_files = task_data.get("task_id_files", "")
         task_grade = task_data.get("task_grade", "")
 
-        # 1. Ler conteúdo dos anexos (OCR de PDF + TXT puro)
         extra_context = ""
         if task_id_files:
             folder_path = os.path.join(UPLOAD_FOLDER, task_id_files)
@@ -75,20 +73,25 @@ async def process_task(task_text, task_id):
         all_results = []
         agents_to_run = []
 
-        # 3. Rodar agentes
         if task_type:
             if task_type == "plan":
                 agents_to_run = ["plan", "write", "report", "code", "image"]
                 for agent in agents_to_run:
                     try:
                         agent_result = run_agent_by_type(agent, final_prompt, quantidade_atividades)
-                        all_results.append(f"Resultado do agente '{agent}':\n{agent_result}\n\n---\n")
+                        if isinstance(agent_result, (list, dict)):
+                            all_results.append(agent_result)
+                        else:
+                            all_results.append(f"Resultado do agente '{agent}':\n{agent_result}\n\n---\n")
                     except Exception as e:
                         all_results.append(f"[Erro ao rodar o agente '{agent}': {str(e)}]")
             else:
                 try:
                     result = run_agent_by_type(task_type, final_prompt, quantidade_atividades)
-                    all_results.append(f"Resultado do agente '{task_type}':\n{result}\n\n---\n")
+                    if isinstance(result, (list, dict)):
+                        all_results.append(result)
+                    else:
+                        all_results.append(f"Resultado do agente '{task_type}':\n{result}\n\n---\n")
                     agents_to_run = [task_type]
                 except Exception as e:
                     all_results.append(f"[Erro ao rodar o agente '{task_type}': {str(e)}]")
@@ -97,18 +100,21 @@ async def process_task(task_text, task_id):
             for agent in agents_to_run:
                 try:
                     agent_result = run_agent_by_type(agent, final_prompt, quantidade_atividades)
-                    all_results.append(f"Resultado do agente '{agent}':\n{agent_result}\n\n---\n")
+                    if isinstance(agent_result, (list, dict)):
+                        all_results.append(agent_result)
+                    else:
+                        all_results.append(f"Resultado do agente '{agent}':\n{agent_result}\n\n---\n")
                 except Exception as e:
                     all_results.append(f"[Erro ao rodar o agente '{agent}': {str(e)}]")
 
-        full_result = "\n".join(all_results)
+        # Geração de full_result apenas com strings
+        full_result = "\n".join([r if isinstance(r, str) else json.dumps(r, ensure_ascii=False) for r in all_results])
 
         if full_result is None or full_result.strip() == "":
             tasks[task_id]["status"] = "error"
             tasks[task_id]["result"] = "Erro: Nenhum resultado foi gerado por nenhum agente."
             return tasks[task_id]["result"]
 
-        # ✅ Filtra apenas agentes suportados pelo parser
         agentes_validos = {"write", "report", "code"}
         resultados_filtrados = []
         agentes_filtrados = []
@@ -118,13 +124,8 @@ async def process_task(task_text, task_id):
                 agentes_filtrados.append(a)
                 resultados_filtrados.append(r)
 
-        # ✅ Agora sim, parse apenas com dados úteis
         atividades = parse_task_output_into_structured_data(resultados_filtrados, agentes_filtrados)
-
-        # ✅ Adiciona imagens (múltiplas), agora com task_grade incluído
         atividades_com_imagem = associate_images_to_activities(atividades, task_grade=task_grade)
-
-        # ✅ Gera saída formatada (para DOCX e exibição)
         formatted_result = format_task_output_as_worksheet(task_id, atividades_com_imagem, agents_to_run)
 
         tasks[task_id]["result"] = full_result
@@ -190,7 +191,6 @@ def save_task_log(task_id, task_data, agents_run, results):
         os.makedirs(logs_folder, exist_ok=True)
         log_file_path = os.path.join(logs_folder, f"task_{task_id}.log")
 
-        # Se task_data contiver objetos não serializáveis, transformar em string
         def make_serializable(obj):
             try:
                 json.dumps(obj)
