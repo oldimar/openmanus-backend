@@ -8,6 +8,9 @@ model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
 
 def generate_text(task_description: str, quantidade_atividades: int = 5) -> str:
+    """
+    Função original — gera várias atividades com base em um prompt genérico.
+    """
     prompt = f"""
 Você é um gerador de atividades pedagógicas interativas para alunos do 2º ao 3º ano do ensino fundamental (6 a 9 anos).
 Com base no pedido abaixo, gere exatamente {quantidade_atividades} atividades no formato JSON válido.
@@ -48,3 +51,58 @@ Formato de saída JSON esperado:
     )
 
     return response.choices[0].message.content.strip()
+
+
+def generate_text_from_activity(descricao: str, imagem_url: str = None) -> dict:
+    """
+    Nova função — gera uma única atividade baseada em descrição e imagem (se houver).
+    Retorna um dicionário com os campos da atividade.
+    """
+    prompt = f"""
+Você é um gerador de atividades interativas para alunos de 6 a 9 anos.
+
+Gere **uma única atividade** com base na seguinte descrição:
+"{descricao}"
+"""
+
+    if imagem_url:
+        prompt += f'\nA atividade deve considerar e fazer referência à seguinte imagem ilustrativa: {imagem_url}'
+
+    prompt += """
+
+A atividade gerada deve ser estruturada como JSON com os seguintes campos:
+
+{
+  "titulo": "ATIVIDADE 1",
+  "instrucao": "🔊 [instrução curta e clara]",
+  "opcoes": [
+    "( ) alternativa A",
+    "( ) alternativa B",
+    "( ) alternativa C",
+    "( ) alternativa D"
+  ]
+}
+
+❗ Gere apenas o JSON bruto, sem explicações extras.
+"""
+
+    response = client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": "Você gera atividades educativas para crianças e responde apenas em JSON."},
+            {"role": "user", "content": prompt.strip()}
+        ],
+        temperature=0.5
+    )
+
+    content = response.choices[0].message.content.strip()
+    try:
+        import json
+        return json.loads(content)
+    except Exception as e:
+        print(f"[WRITE_AGENT] ❌ Erro ao interpretar JSON: {e}")
+        return {
+            "titulo": "ATIVIDADE",
+            "instrucao": "🔊 Atividade gerada, mas o formato não pôde ser interpretado automaticamente.",
+            "opcoes": [content]
+        }
