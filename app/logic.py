@@ -72,7 +72,7 @@ async def process_task(task_text, task_id):
 
         # ✅ NOVO FLUXO — TAREFA DO TIPO 'diagnostica'
         if task_type == "diagnostica":
-            from task_types.diagnostica import gerar_atividades_diagnosticas
+            from app.task_types.diagnostica import gerar_atividades_diagnosticas
             atividades = gerar_atividades_diagnosticas(final_prompt, task_grade)
             formatted_result = format_task_output_as_worksheet(task_id, atividades, ["diagnostica"])
             tasks[task_id]["result"] = json.dumps(atividades, ensure_ascii=False, indent=2)
@@ -83,7 +83,7 @@ async def process_task(task_text, task_id):
 
         # ✅ NOVO FLUXO — TAREFA DO TIPO 'trilha'
         elif task_type == "trilha":
-            from task_types.trilha import gerar_atividades_trilha
+            from app.task_types.trilha import gerar_atividades_trilha
             atividades = gerar_atividades_trilha(final_prompt, task_grade)
             formatted_result = format_task_output_as_worksheet(task_id, atividades, ["trilha"])
             tasks[task_id]["result"] = json.dumps(atividades, ensure_ascii=False, indent=2)
