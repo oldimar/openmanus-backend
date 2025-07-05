@@ -1,14 +1,36 @@
 import re
+import json
 
 def parse_task_output_into_structured_data(resultados, agentes):
     atividades = []
 
     for resultado, agente in zip(resultados, agentes):
-        blocos = re.split(r"\n---+\n", resultado)
+        # 🔍 Primeiro, tenta detectar e extrair JSON estruturado (com campos 'titulo', 'instrucao', 'opcoes')
+        json_match = re.search(r"\[\s*{.*?}\s*]", resultado, re.DOTALL)
+        if json_match:
+            try:
+                json_data = json.loads(json_match.group())
+                for item in json_data:
+                    texto = ""
+                    if "titulo" in item:
+                        texto += f"{item['titulo']}\n"
+                    if "instrucao" in item:
+                        texto += item["instrucao"]
 
+                    atividade = {
+                        "texto": texto.strip(),
+                        "opcoes": item.get("opcoes", []),
+                        "imagens_url": []
+                    }
+                    atividades.append(atividade)
+                continue  # ✅ Já processado como JSON, pula para próximo resultado
+            except Exception as e:
+                print(f"[parser] Erro ao tentar interpretar JSON estruturado: {e}")
+
+        # 🔁 Fallback: parsing linha a linha (mantém seu código original exatamente)
+        blocos = re.split(r"\n---+\n", resultado)
         for bloco in blocos:
             sub_blocos = re.split(r"\n?ATIVIDADE\s+\d+\n?", bloco, flags=re.IGNORECASE)
-
             for sub_bloco in sub_blocos:
                 linhas = sub_bloco.strip().split("\n")
                 if not linhas or all(not linha.strip() for linha in linhas):
@@ -25,17 +47,17 @@ def parse_task_output_into_structured_data(resultados, agentes):
                     if not linha:
                         continue
 
-                    # Pular cabeçalhos de agentes
+                    # Ignora cabeçalho de agente
                     if re.match(r"^Resultado do agente '.*?':$", linha):
                         continue
 
-                    # Imagem Markdown
+                    # Imagens Markdown
                     markdown_imgs = re.findall(r"!\[.*?\]\((https?://.*?)\)", linha)
                     if markdown_imgs:
                         atividade["imagens_url"].extend(markdown_imgs)
                         continue
 
-                    # Imagem HTML
+                    # Imagens HTML
                     html_imgs = re.findall(r'<img\s+[^>]*src=["\'](https?://.*?)["\']', linha)
                     if html_imgs:
                         atividade["imagens_url"].extend(html_imgs)
@@ -69,7 +91,6 @@ def parse_task_output_into_structured_data(resultados, agentes):
                 atividade["opcoes"] = [op.strip() for op in atividade["opcoes"]]
                 atividade["imagens_url"] = list(set(atividade["imagens_url"]))
 
-                # Evita salvar "atividade" vazia com apenas cabeçalho ou ruído
                 if atividade["texto"] or atividade["opcoes"] or atividade["imagens_url"]:
                     atividades.append(atividade)
 
