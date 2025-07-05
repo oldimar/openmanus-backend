@@ -1,38 +1,34 @@
-# app/task_types/diagnostica.py
-
-from app.agents.plan_agent import generate_activity_plan
-from app.agents.image_agent import generate_images_from_list
+from app.agents.plan_agent import generate_plan
+from app.agents.image_agent import generate_image
 from app.agents.write_agent import generate_text_from_activity
+from app.parser import parse_task_output_into_structured_data
 
-def gerar_atividades_diagnosticas(task_description: str, task_grade: str = "2º ano do ensino fundamental"):
-    """
-    Executa o fluxo completo para gerar atividades diagnósticas:
-    1. Gera o plano com descrições e flag com_imagem.
-    2. Gera imagens apenas para atividades que precisam.
-    3. Gera as atividades completas com ou sem imagem.
-    4. Retorna lista de atividades estruturadas.
-    """
 
-    plano = generate_activity_plan(task_description, task_grade)
+def gerar_atividades_diagnosticas(prompt: str, task_grade: str = "") -> list[dict]:
+    # Passo 1: gerar o plano com base no prompt
+    plano = generate_plan(prompt)
+    if not isinstance(plano, list) or not plano:
+        raise ValueError("❌ Plano de atividades retornou vazio ou inválido.")
 
-    if not isinstance(plano, list):
-        raise Exception("Erro: plano retornado não está em formato de lista.")
+    # Passo 2: gerar imagens, se necessário
+    descricoes_para_imagem = [a["descricao"] for a in plano if a.get("com_imagem")]
+    imagens = generate_image(descricoes_para_imagem) if descricoes_para_imagem else []
+    if not isinstance(imagens, list):
+        imagens = []
 
-    descricoes_com_imagem = [a["descricao"] for a in plano if a.get("com_imagem")]
-    urls_imagens = generate_images_from_list(descricoes_com_imagem) if descricoes_com_imagem else []
-
-    atividades_cruas = []
-    imagem_idx = 0
-
-    for atividade in plano:
-        descricao = atividade.get("descricao", "")
-        com_imagem = atividade.get("com_imagem", False)
-        imagem_url = urls_imagens[imagem_idx] if com_imagem and imagem_idx < len(urls_imagens) else None
-
+    # Passo 3: gerar as atividades com ou sem imagem
+    atividades = []
+    img_idx = 0
+    for item in plano:
+        descricao = item.get("descricao", "")
+        com_imagem = item.get("com_imagem", False)
+        imagem_url = imagens[img_idx] if com_imagem and img_idx < len(imagens) else None
         if com_imagem:
-            imagem_idx += 1
+            img_idx += 1
 
-        atividade_gerada = generate_text_from_activity(descricao, imagem_url)
-        atividades_cruas.append(atividade_gerada)
+        atividade_json = generate_text_from_activity(descricao, imagem_url)
+        if isinstance(atividade_json, dict):
+            atividade_parseada = parse_task_output_into_structured_data([atividade_json], ["write"])
+            atividades.extend(atividade_parseada)
 
-    return atividades_cruas
+    return atividades
