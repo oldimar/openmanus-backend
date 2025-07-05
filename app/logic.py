@@ -1,6 +1,7 @@
 import uuid
 import os
 import json
+import re
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -21,6 +22,13 @@ load_dotenv()
 tasks = {}
 UPLOAD_FOLDER = "uploads"
 model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+
+
+def extrair_numero_atividades(descricao: str, default: int = 5) -> int:
+    match = re.search(r"\b(\d+)\s+(atividades|questões|perguntas|exercícios)", descricao.lower())
+    if match:
+        return int(match.group(1))
+    return default
 
 
 async def process_task(task_text, task_id):
@@ -62,6 +70,8 @@ async def process_task(task_text, task_id):
         if task_grade:
             final_prompt += f"\n\n[Série/ano da turma: {task_grade}]"
 
+        quantidade_atividades = extrair_numero_atividades(task_description)
+
         all_results = []
         agents_to_run = []
 
@@ -71,13 +81,13 @@ async def process_task(task_text, task_id):
                 agents_to_run = ["plan", "write", "report", "code", "image"]
                 for agent in agents_to_run:
                     try:
-                        agent_result = run_agent_by_type(agent, final_prompt)
+                        agent_result = run_agent_by_type(agent, final_prompt, quantidade_atividades)
                         all_results.append(f"Resultado do agente '{agent}':\n{agent_result}\n\n---\n")
                     except Exception as e:
                         all_results.append(f"[Erro ao rodar o agente '{agent}': {str(e)}]")
             else:
                 try:
-                    result = run_agent_by_type(task_type, final_prompt)
+                    result = run_agent_by_type(task_type, final_prompt, quantidade_atividades)
                     all_results.append(f"Resultado do agente '{task_type}':\n{result}\n\n---\n")
                     agents_to_run = [task_type]
                 except Exception as e:
@@ -86,7 +96,7 @@ async def process_task(task_text, task_id):
             agents_to_run = decide_agents(final_prompt)
             for agent in agents_to_run:
                 try:
-                    agent_result = run_agent_by_type(agent, final_prompt)
+                    agent_result = run_agent_by_type(agent, final_prompt, quantidade_atividades)
                     all_results.append(f"Resultado do agente '{agent}':\n{agent_result}\n\n---\n")
                 except Exception as e:
                     all_results.append(f"[Erro ao rodar o agente '{agent}': {str(e)}]")
@@ -136,13 +146,13 @@ async def process_task(task_text, task_id):
     return tasks[task_id]["result"], tasks[task_id]["structured_result"]
 
 
-def run_agent_by_type(agent_type, prompt_text):
+def run_agent_by_type(agent_type, prompt_text, quantidade_atividades=5):
     if agent_type == "plan":
         return generate_plan(prompt_text)
     elif agent_type == "code":
         return generate_code(prompt_text)
     elif agent_type == "write":
-        return generate_text(prompt_text)
+        return generate_text(prompt_text, quantidade_atividades)
     elif agent_type == "report":
         return generate_report(prompt_text)
     elif agent_type == "image":
