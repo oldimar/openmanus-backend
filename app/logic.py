@@ -81,6 +81,17 @@ async def process_task(task_text, task_id):
             save_task_log(task_id=task_id, task_data=task_data, agents_run=["diagnostica"], results=tasks[task_id]["result"])
             return tasks[task_id]["result"], tasks[task_id]["structured_result"]
 
+        # ✅ NOVO FLUXO — TAREFA DO TIPO 'trilha'
+        elif task_type == "trilha":
+            from task_types.trilha import gerar_atividades_trilha
+            atividades = gerar_atividades_trilha(final_prompt, task_grade)
+            formatted_result = format_task_output_as_worksheet(task_id, atividades, ["trilha"])
+            tasks[task_id]["result"] = json.dumps(atividades, ensure_ascii=False, indent=2)
+            tasks[task_id]["structured_result"] = atividades
+            tasks[task_id]["status"] = "done"
+            save_task_log(task_id=task_id, task_data=task_data, agents_run=["trilha"], results=tasks[task_id]["result"])
+            return tasks[task_id]["result"], tasks[task_id]["structured_result"]
+
         # 🔁 FLUXO ORIGINAL — plan → image → write
         plan_result = generate_plan(final_prompt)
 
