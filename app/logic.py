@@ -190,9 +190,17 @@ def save_task_log(task_id, task_data, agents_run, results):
         os.makedirs(logs_folder, exist_ok=True)
         log_file_path = os.path.join(logs_folder, f"task_{task_id}.log")
 
+        # Se task_data contiver objetos não serializáveis, transformar em string
+        def make_serializable(obj):
+            try:
+                json.dumps(obj)
+                return obj
+            except TypeError:
+                return str(obj)
+
         log_content = {
             "task_id": task_id,
-            "task_data": task_data,
+            "task_data": make_serializable(task_data),
             "agents_executed": agents_run,
             "results": results,
             "status": tasks[task_id]["status"]
