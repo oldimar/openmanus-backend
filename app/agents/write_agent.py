@@ -98,6 +98,12 @@ A atividade gerada deve ser estruturada como JSON com os seguintes campos:
 
     content = response.choices[0].message.content.strip()
 
+    # ⚠️ Corrige respostas com blocos ```json ou ``` da IA
+    if content.startswith("```json"):
+        content = content.removeprefix("```json").removesuffix("```").strip()
+    elif content.startswith("```"):
+        content = content.removeprefix("```").removesuffix("```").strip()
+
     if not content:
         print("[WRITE_AGENT] ⚠️ Resposta vazia da IA.")
         return {
