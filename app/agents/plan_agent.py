@@ -1,7 +1,7 @@
-from openai import OpenAI
 import os
 import json
 from dotenv import load_dotenv
+from openai import OpenAI
 
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -28,7 +28,7 @@ A descrição da tarefa está logo abaixo:
 {task_description}
 
 Gere o plano em formato de texto claro e estruturado.
-"""
+    """.strip()
 
     response = client.chat.completions.create(
         model=model,
@@ -41,7 +41,7 @@ Gere o plano em formato de texto claro e estruturado.
     return response.choices[0].message.content.strip()
 
 
-# NOVA FUNÇÃO — PARA LISTA DE ATIVIDADES COM FLAG com_imagem
+# NOVA FUNÇÃO — GERA LISTA DE ATIVIDADES EM JSON
 def generate_activity_plan(task_description: str, task_grade: str = "2º ano do ensino fundamental"):
     prompt = f"""
 Você é um planejador pedagógico com experiência em educação infantil e ensino fundamental.
@@ -68,20 +68,31 @@ Considere que a turma é do {task_grade}.
 
 Tarefa base:
 {task_description}
-"""
+    """.strip()
 
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": "Você é um especialista em planejamento de atividades escolares. Sempre responda com um JSON válido e coerente."},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.6
-    )
-
-    content = response.choices[0].message.content.strip()
     try:
-        return json.loads(content)
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": "Você é um especialista em planejamento de atividades escolares. Sempre responda com um JSON válido e coerente."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.6
+        )
+
+        content = response.choices[0].message.content.strip()
+
+        if not content:
+            print("[PLAN_AGENT] ❌ Resposta vazia da IA.")
+            return []
+
+        try:
+            return json.loads(content)
+        except Exception as e:
+            print(f"[PLAN_AGENT] ❌ Erro ao interpretar JSON: {e}")
+            print("[PLAN_AGENT] Conteúdo retornado pela IA:\n", content)
+            return []
+
     except Exception as e:
-        print(f"❌ Erro ao interpretar JSON retornado pelo plano de atividades: {e}")
-        return [{"descricao": content, "com_imagem": False}]
+        print(f"[PLAN_AGENT] ❌ Erro na chamada da IA: {e}")
+        return []
