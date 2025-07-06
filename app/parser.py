@@ -26,8 +26,13 @@ def parse_task_output_into_structured_data(resultados, agentes, quantidade_esper
                     "opcoes": [str(op).strip() for op in opcoes_raw],
                     "imagens_url": []
                 }
+
+                # ✅ Corrige: pega imagem_url se presente
+                if "imagem_url" in item and isinstance(item["imagem_url"], str):
+                    atividade["imagens_url"].append(item["imagem_url"])
+
                 atividades.append(atividade)
-            continue  # já processado, passa para próximo resultado
+            continue
 
         # 🔍 Tenta detectar JSON estruturado dentro de string
         if isinstance(resultado, str):
@@ -51,6 +56,10 @@ def parse_task_output_into_structured_data(resultados, agentes, quantidade_esper
                             "opcoes": [str(op).strip() for op in opcoes_raw],
                             "imagens_url": []
                         }
+
+                        if "imagem_url" in item and isinstance(item["imagem_url"], str):
+                            atividade["imagens_url"].append(item["imagem_url"])
+
                         atividades.append(atividade)
                     continue
                 except Exception as e:
