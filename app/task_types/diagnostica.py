@@ -13,7 +13,7 @@ def extrair_numero_atividades(descricao: str, default: int = 5) -> int:
 def gerar_atividades_diagnosticas(task_prompt: str, task_grade: str = "2º ano") -> list:
     quantidade = extrair_numero_atividades(task_prompt)
 
-    # ✅ Força a IA a gerar exatamente 'quantidade' atividades
+    # 🔁 Força a IA a gerar exatamente 'quantidade' atividades
     prompt_reforcado = f"{task_prompt.strip()}\n\nQuantidade esperada de atividades: {quantidade}"
 
     plan = generate_activity_plan(prompt_reforcado, task_grade)
@@ -27,7 +27,7 @@ def gerar_atividades_diagnosticas(task_prompt: str, task_grade: str = "2º ano")
     atividades = []
     imagem_index = 0
 
-    for atividade in plan[:quantidade]:  # 🚫 Corta excesso caso a IA retorne demais
+    for idx, atividade in enumerate(plan[:quantidade]):
         descricao = atividade.get("descricao", "")
         com_imagem = atividade.get("com_imagem", False)
         imagem_url = imagens_geradas[imagem_index] if com_imagem and imagem_index < len(imagens_geradas) else None
@@ -36,6 +36,10 @@ def gerar_atividades_diagnosticas(task_prompt: str, task_grade: str = "2º ano")
             imagem_index += 1
 
         atividade_gerada = generate_text_from_activity(descricao, imagem_url)
+
+        # ✅ Força o título correto: ATIVIDADE 1, ATIVIDADE 2, ...
+        atividade_gerada["titulo"] = f"ATIVIDADE {idx + 1}"
+
         atividades.append(atividade_gerada)
 
     # ✅ Validação
