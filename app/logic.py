@@ -118,7 +118,7 @@ async def process_task(task_text, task_id):
             if com_imagem:
                 imagem_index += 1
 
-            atividade_gerada = generate_text(descricao, imagem_url=imagem_url)
+            atividade_gerada = generate_text(descricao)
             atividades_estruturadas.append(atividade_gerada)
 
         full_result = json.dumps(atividades_estruturadas, ensure_ascii=False, indent=2)
