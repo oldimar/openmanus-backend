@@ -9,7 +9,7 @@ from app.agents.plan_agent import generate_plan
 from app.agents.code_agent import generate_code
 from app.agents.write_agent import generate_text
 from app.agents.report_agent import generate_report
-from app.agents.image_agent import generate_image
+from app.agents.image_agent import generate_images_from_list
 from app.agents.task_router_agent import decide_agents
 
 from app.ocr_reader import extract_text_from_pdf
@@ -103,7 +103,7 @@ async def process_task(task_text, task_id):
         imagens_geradas = []
 
         if descricoes_com_imagem:
-            imagens_geradas = generate_image(descricoes_com_imagem)
+            imagens_geradas = generate_images_from_list(descricoes_com_imagem)
             if not isinstance(imagens_geradas, list):
                 raise Exception("Resposta inválida do agente image. Esperado: lista de URLs.")
 
