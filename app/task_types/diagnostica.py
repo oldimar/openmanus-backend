@@ -22,36 +22,38 @@ def gerar_atividades_diagnosticas(task_prompt: str, task_grade: str = "2º ano")
     if not isinstance(plan, list) or len(plan) == 0:
         raise Exception("❌ Plano de atividades retornou vazio ou inválido.")
 
-    # 🔍 Gera imagens via Pixabay para atividades que solicitam imagem
-    atividades_com_imagem = [a for a in plan if a.get("com_imagem")]
-    imagens_geradas = []
-
-    for atividade in atividades_com_imagem:
-        desc = atividade.get("descricao", "")
-        urls = fetch_image_from_pixabay(desc, quantidade=1)
-        imagem_url = urls[0] if urls else None
-        imagens_geradas.append(imagem_url)
-
     atividades = []
-    imagem_index = 0
 
     for idx, atividade in enumerate(plan[:quantidade]):
         descricao = atividade.get("descricao", "")
         com_imagem = atividade.get("com_imagem", False)
 
+        # 🔍 Busca imagem imediatamente se necessário
         imagem_url = None
-        if com_imagem and imagem_index < len(imagens_geradas):
-            imagem_url = imagens_geradas[imagem_index]
-            imagem_index += 1
+        if com_imagem:
+            urls = fetch_image_from_pixabay(descricao, quantidade=1)
+            imagem_url = urls[0] if urls else None
 
         atividade_gerada = generate_text_from_activity(descricao, imagem_url)
-        atividade_gerada["titulo"] = f"ATIVIDADE {idx + 1}"  # ✅ Corrige título
-        atividades.append(atividade_gerada)
 
-    # 🧪 Validação
-    for idx, atividade in enumerate(atividades):
+        # ✅ Corrige título
+        atividade_gerada["titulo"] = f"ATIVIDADE {idx + 1}"
+
+        # 🚨 Verificação preventiva antes de validar com schema
+        if not (
+            isinstance(atividade_gerada, dict)
+            and atividade_gerada.get("titulo")
+            and atividade_gerada.get("instrucao")
+            and isinstance(atividade_gerada.get("opcoes", []), list)
+            and len(atividade_gerada["opcoes"]) >= 2
+        ):
+            print(f"[VALIDAÇÃO PREVENTIVA] Atividade {idx + 1} ignorada (estrutura incompleta).")
+            continue
+
         try:
-            Atividade(**atividade)
+            # 🧪 Validação final com pydantic
+            Atividade(**atividade_gerada)
+            atividades.append(atividade_gerada)
         except Exception as e:
             print(f"[VALIDAÇÃO] Atividade {idx + 1} inválida:", e)
 
