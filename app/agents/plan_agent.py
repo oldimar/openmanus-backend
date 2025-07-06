@@ -68,31 +68,28 @@ Considere que a turma é do {task_grade}.
 
 Tarefa base:
 {task_description}
-    """.strip()
+"""
+
+    response = client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": "Você é um especialista em planejamento de atividades escolares. Sempre responda com um JSON válido e coerente."},
+            {"role": "user", "content": prompt}
+        ],
+        temperature=0.6
+    )
+
+    content = response.choices[0].message.content.strip()
+
+    # 💥 Remove blocos de markdown (```json ... ```)
+    if content.startswith("```json"):
+        content = content.removeprefix("```json").strip()
+    if content.endswith("```"):
+        content = content.removesuffix("```").strip()
 
     try:
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": "Você é um especialista em planejamento de atividades escolares. Sempre responda com um JSON válido e coerente."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.6
-        )
-
-        content = response.choices[0].message.content.strip()
-
-        if not content:
-            print("[PLAN_AGENT] ❌ Resposta vazia da IA.")
-            return []
-
-        try:
-            return json.loads(content)
-        except Exception as e:
-            print(f"[PLAN_AGENT] ❌ Erro ao interpretar JSON: {e}")
-            print("[PLAN_AGENT] Conteúdo retornado pela IA:\n", content)
-            return []
-
+        return json.loads(content)
     except Exception as e:
-        print(f"[PLAN_AGENT] ❌ Erro na chamada da IA: {e}")
+        print(f"[PLAN_AGENT] ❌ Erro ao interpretar JSON: {e}")
+        print("[PLAN_AGENT] Conteúdo retornado pela IA:\n", content)
         return []
