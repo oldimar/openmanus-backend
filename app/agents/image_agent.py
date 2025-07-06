@@ -1,4 +1,4 @@
-import os 
+import os
 import requests
 from openai import OpenAI
 from dotenv import load_dotenv
@@ -43,7 +43,7 @@ def generate_images_from_list(descriptions: list[str]) -> list[str]:
     for i, desc in enumerate(descriptions):
         print(f"[IMAGE_AGENT] Gerando imagem {i+1}/{len(descriptions)}: '{desc[:50]}...'")
         try:
-            url = generate_image(desc)
+            url = fetch_image_from_pixabay(desc)[0]
             urls.append(url)
         except Exception as e:
             print(f"[IMAGE_AGENT] ❌ Erro ao gerar imagem para '{desc}': {e}")
@@ -68,6 +68,21 @@ def traduzir_para_ingles(termo_pt: str) -> str:
     return mapa.get(termo_pt.lower(), termo_pt)
 
 
+def limpar_termo_para_pixabay(descricao: str) -> str:
+    """
+    Reduz uma descrição longa a termos curtos para busca mais eficaz na API do Pixabay.
+    """
+    palavras_chave = [
+        "floresta", "animal", "animais", "natureza", "educação", "desenho",
+        "mamífero", "aves", "répteis", "savana", "bicho", "infantil"
+    ]
+    descricao = descricao.lower()
+    encontrados = [p for p in palavras_chave if p in descricao]
+    termo_final = " ".join(set(encontrados)) or "educacao"
+    print(f"[PIXABAY] 🔍 Termo reduzido para busca: '{termo_final}'")
+    return termo_final
+
+
 def fetch_image_from_pixabay(search_term: str, quantidade: int = 1, tentativas: int = 0) -> list[str]:
     try:
         original_term = (search_term or "").strip().lower()
@@ -76,11 +91,18 @@ def fetch_image_from_pixabay(search_term: str, quantidade: int = 1, tentativas: 
         if original_term in termos_invalidos or len(original_term) < 3:
             raise ValueError(f"Termo inválido para Pixabay: '{original_term}'")
 
-        translated_term = traduzir_para_ingles(original_term)
-        if translated_term != original_term:
-            print(f"[PIXABAY] Tradução aplicada: '{original_term}' → '{translated_term}'")
+        # 🔁 Novo: reduz e traduz o termo de busca
+        termo_limpo = limpar_termo_para_pixabay(original_term)
+        translated_term = traduzir_para_ingles(termo_limpo)
+
+        if translated_term != termo_limpo:
+            print(f"[PIXABAY] Tradução aplicada: '{termo_limpo}' → '{translated_term}'")
         else:
-            print(f"[PIXABAY] Nenhuma tradução encontrada para '{original_term}', usando original.")
+            print(f"[PIXABAY] Nenhuma tradução encontrada. Usando termo: '{translated_term}'")
+
+        # Corta se ultrapassar o limite
+        if len(translated_term) > 100:
+            translated_term = translated_term[:100]
 
         url = "https://pixabay.com/api/"
         params = {
@@ -99,8 +121,8 @@ def fetch_image_from_pixabay(search_term: str, quantidade: int = 1, tentativas: 
             raise Exception(f"Erro HTTP {response.status_code}: {response.text}")
 
         data = response.json()
-
         imagens = []
+
         for hit in data.get("hits", []):
             image_url = hit.get("webformatURL") or hit.get("largeImageURL")
             if image_url and image_url.startswith("http"):
@@ -110,11 +132,11 @@ def fetch_image_from_pixabay(search_term: str, quantidade: int = 1, tentativas: 
                     break
 
         if imagens:
-            print(f"[PIXABAY] ✅ {len(imagens)} imagem(ns) válida(s) encontrada(s).")
+            print(f"[PIXABAY] ✅ {len(imagens)} imagem(ns) encontrada(s).")
             return imagens
 
         if tentativas == 0:
-            print(f"[PIXABAY] Nenhuma imagem válida. Tentando fallback com 'education'...")
+            print(f"[PIXABAY] ⚠️ Nenhuma imagem válida. Tentando fallback com 'education'...")
             return fetch_image_from_pixabay("education", quantidade, tentativas=1)
 
         raise Exception("Nenhuma imagem válida retornada.")
