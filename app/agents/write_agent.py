@@ -56,7 +56,7 @@ Formato de saída JSON esperado:
 
 def generate_text_from_activity(descricao: str, imagem_url: str = None) -> dict:
     """
-    Nova função — gera uma única atividade baseada em descrição e imagem (se houver).
+    Gera uma única atividade baseada em descrição e imagem (se houver).
     Retorna um dicionário com os campos da atividade.
     """
     prompt = f"""
@@ -98,7 +98,7 @@ A atividade gerada deve ser estruturada como JSON com os seguintes campos:
 
     content = response.choices[0].message.content.strip()
 
-    # ⚠️ Corrige respostas com blocos ```json ou ``` da IA
+    # ⚠️ Corrige blocos ```json
     if content.startswith("```json"):
         content = content.removeprefix("```json").removesuffix("```").strip()
     elif content.startswith("```"):
@@ -109,16 +109,21 @@ A atividade gerada deve ser estruturada como JSON com os seguintes campos:
         return {
             "titulo": "ATIVIDADE GERADA",
             "instrucao": "🔊 A IA não retornou nenhuma atividade.",
-            "opcoes": ["( ) Alternativa 1", "( ) Alternativa 2"]
+            "opcoes": ["( ) Alternativa 1", "( ) Alternativa 2"],
+            "imagem_url": imagem_url
         }
 
     try:
-        return json.loads(content)
+        atividade = json.loads(content)
+        if imagem_url:
+            atividade["imagem_url"] = imagem_url  # ✅ aplica a imagem no retorno
+        return atividade
     except Exception as e:
         print(f"[WRITE_AGENT] ❌ Erro ao interpretar JSON: {e}")
         print("[WRITE_AGENT] Conteúdo da IA:", content)
         return {
             "titulo": "ATIVIDADE MALFORMADA",
             "instrucao": "🔊 A IA gerou uma resposta, mas ela não pôde ser interpretada como JSON.",
-            "opcoes": [content]
+            "opcoes": [content],
+            "imagem_url": imagem_url
         }
