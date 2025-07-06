@@ -9,7 +9,6 @@ from app.agents.plan_agent import generate_plan
 from app.agents.code_agent import generate_code
 from app.agents.write_agent import generate_text
 from app.agents.report_agent import generate_report
-from app.agents.image_agent import generate_image
 from app.agents.task_router_agent import decide_agents
 
 from app.ocr_reader import extract_text_from_pdf
