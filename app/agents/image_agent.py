@@ -36,18 +36,35 @@ def generate_image(task_description: str) -> str:
 
 def generate_images_from_list(descriptions: list[str]) -> list[str]:
     """
-    Recebe uma lista de descrições e gera uma imagem para cada uma,
-    retornando uma lista de URLs na mesma ordem.
+    Recebe uma lista de descrições e gera uma imagem para cada uma usando o Pixabay.
+    Garante que nenhuma imagem se repita.
     """
     urls = []
+    urls_utilizadas = set()
+
     for i, desc in enumerate(descriptions):
-        print(f"[IMAGE_AGENT] Gerando imagem {i+1}/{len(descriptions)}: '{desc[:50]}...'")
+        print(f"[IMAGE_AGENT] Buscando imagem {i+1}/{len(descriptions)} para: '{desc[:60]}...'")
+
         try:
-            url = fetch_image_from_pixabay(desc)[0]
-            urls.append(url)
+            imagens = fetch_image_from_pixabay(desc, quantidade=5)  # busca mais de uma
+
+            imagem_escolhida = None
+            for url in imagens:
+                if url not in urls_utilizadas:
+                    imagem_escolhida = url
+                    urls_utilizadas.add(url)
+                    break
+
+            if not imagem_escolhida:
+                print("[IMAGE_AGENT] ⚠️ Nenhuma imagem nova encontrada. Usando fallback.")
+                imagem_escolhida = "https://cdn.pixabay.com/photo/2020/12/09/20/07/education-5816931_1280.jpg"
+
+            urls.append(imagem_escolhida)
+
         except Exception as e:
             print(f"[IMAGE_AGENT] ❌ Erro ao gerar imagem para '{desc}': {e}")
             urls.append("https://cdn.pixabay.com/photo/2020/12/09/20/07/education-5816931_1280.jpg")
+
     return urls
 
 
@@ -86,12 +103,10 @@ def limpar_termo_para_pixabay(descricao: str) -> str:
 def fetch_image_from_pixabay(search_term: str, quantidade: int = 1, tentativas: int = 0) -> list[str]:
     try:
         original_term = (search_term or "").strip().lower()
-
         termos_invalidos = {"", "tema", "atividade", "atividade 1", "imagem", "null", "none"}
         if original_term in termos_invalidos or len(original_term) < 3:
             raise ValueError(f"Termo inválido para Pixabay: '{original_term}'")
 
-        # 🔁 Novo: reduz e traduz o termo de busca
         termo_limpo = limpar_termo_para_pixabay(original_term)
         translated_term = traduzir_para_ingles(termo_limpo)
 
@@ -100,7 +115,6 @@ def fetch_image_from_pixabay(search_term: str, quantidade: int = 1, tentativas: 
         else:
             print(f"[PIXABAY] Nenhuma tradução encontrada. Usando termo: '{translated_term}'")
 
-        # Corta se ultrapassar o limite
         if len(translated_term) > 100:
             translated_term = translated_term[:100]
 
@@ -111,7 +125,7 @@ def fetch_image_from_pixabay(search_term: str, quantidade: int = 1, tentativas: 
             "lang": "pt",
             "image_type": "photo",
             "safesearch": "true",
-            "per_page": max(3, quantidade)
+            "per_page": max(quantidade * 2, 5)  # busca mais para evitar repetições
         }
 
         print(f"[PIXABAY] Buscando imagem para: '{translated_term}'")
