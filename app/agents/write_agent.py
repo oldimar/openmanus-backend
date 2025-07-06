@@ -2,15 +2,27 @@ import os
 import json
 from dotenv import load_dotenv
 from openai import OpenAI
+from urllib.parse import urlparse
 
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
 
+def is_valid_url(url: str) -> bool:
+    """
+    Verifica se uma string é uma URL válida com esquema e domínio.
+    """
+    try:
+        result = urlparse(url)
+        return all([result.scheme, result.netloc])
+    except:
+        return False
+
+
 def generate_text(task_description: str, quantidade_atividades: int = 5) -> str:
     """
-    Função original — gera várias atividades com base em um prompt genérico.
+    Gera várias atividades com base em um prompt genérico.
     """
     prompt = f"""
 Você é um gerador de atividades pedagógicas interativas para alunos do 2º ao 3º ano do ensino fundamental (6 a 9 anos).
@@ -40,7 +52,7 @@ Formato de saída JSON esperado:
 ]
 
 ❗ Gere apenas o JSON bruto, sem explicações, sem texto fora do JSON.
-    """.strip()
+""".strip()
 
     response = client.chat.completions.create(
         model=model,
@@ -110,18 +122,19 @@ A atividade gerada deve ser estruturada como JSON com os seguintes campos:
             "titulo": "ATIVIDADE GERADA",
             "instrucao": "🔊 A IA não retornou nenhuma atividade.",
             "opcoes": ["( ) Alternativa 1", "( ) Alternativa 2"],
-            "imagem_url": imagem_url
+            "imagem_url": imagem_url if is_valid_url(imagem_url or "") else None
         }
 
     try:
         atividade = json.loads(content)
 
-        # 🔒 Corrige imagem_url inválida gerada pela IA
-        if "imagem_url" in atividade and not str(atividade["imagem_url"]).startswith("http"):
+        # 🔒 Valida imagem_url retornada pela IA (se houver)
+        if "imagem_url" in atividade and not is_valid_url(str(atividade["imagem_url"])):
+            print(f"[WRITE_AGENT] ❌ imagem_url inválida da IA removida: {atividade['imagem_url']}")
             del atividade["imagem_url"]
 
-        # ✅ Aplica imagem_url correta, se houver
-        if imagem_url:
+        # ✅ Sobrescreve imagem_url se uma URL válida foi recebida externamente
+        if imagem_url and is_valid_url(imagem_url):
             atividade["imagem_url"] = imagem_url
 
         return atividade
@@ -133,5 +146,5 @@ A atividade gerada deve ser estruturada como JSON com os seguintes campos:
             "titulo": "ATIVIDADE MALFORMADA",
             "instrucao": "🔊 A IA gerou uma resposta, mas ela não pôde ser interpretada como JSON.",
             "opcoes": [content],
-            "imagem_url": imagem_url
+            "imagem_url": imagem_url if is_valid_url(imagem_url or "") else None
         }
