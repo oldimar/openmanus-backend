@@ -1,11 +1,12 @@
+from openai import OpenAI
 import os
 import json
 from dotenv import load_dotenv
-from openai import OpenAI
 
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+
 
 # FUNÇÃO ORIGINAL — MANTIDA
 def generate_plan(task_description: str, task_grade: str = "2º ano do ensino fundamental"):
@@ -28,7 +29,7 @@ A descrição da tarefa está logo abaixo:
 {task_description}
 
 Gere o plano em formato de texto claro e estruturado.
-    """.strip()
+"""
 
     response = client.chat.completions.create(
         model=model,
@@ -41,7 +42,7 @@ Gere o plano em formato de texto claro e estruturado.
     return response.choices[0].message.content.strip()
 
 
-# NOVA FUNÇÃO — GERA LISTA DE ATIVIDADES EM JSON
+# ✅ FUNÇÃO CORRIGIDA — para lista de atividades com JSON válido
 def generate_activity_plan(task_description: str, task_grade: str = "2º ano do ensino fundamental"):
     prompt = f"""
 Você é um planejador pedagógico com experiência em educação infantil e ensino fundamental.
@@ -81,9 +82,11 @@ Tarefa base:
 
     content = response.choices[0].message.content.strip()
 
-    # 💥 Remove blocos de markdown (```json ... ```)
+    # ✅ Remove blocos de markdown (```json ... ```)
     if content.startswith("```json"):
         content = content.removeprefix("```json").strip()
+    if content.startswith("```"):
+        content = content.removeprefix("```").strip()
     if content.endswith("```"):
         content = content.removesuffix("```").strip()
 
