@@ -27,7 +27,7 @@ def parse_task_output_into_structured_data(resultados, agentes, quantidade_esper
                     "imagens_url": []
                 }
 
-                # ✅ Corrige: pega imagem_url se presente
+                # ✅ Captura imagem_url da IA (caso tenha)
                 if "imagem_url" in item and isinstance(item["imagem_url"], str):
                     atividade["imagens_url"].append(item["imagem_url"])
 
