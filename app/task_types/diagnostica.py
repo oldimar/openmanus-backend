@@ -1,10 +1,22 @@
+import re
 from app.agents.plan_agent import generate_activity_plan
 from app.agents.image_agent import generate_image
 from app.agents.write_agent import generate_text_from_activity
 from app.atividade_schema import Atividade
 
+def extrair_numero_atividades(descricao: str, default: int = 5) -> int:
+    match = re.search(r"\b(\d+)\s+(atividades|questões|perguntas|exercícios)", descricao.lower())
+    if match:
+        return int(match.group(1))
+    return default
+
 def gerar_atividades_diagnosticas(task_prompt: str, task_grade: str = "2º ano") -> list:
-    plan = generate_activity_plan(task_prompt, task_grade)
+    quantidade = extrair_numero_atividades(task_prompt)
+
+    # ✅ Força a IA a gerar exatamente 'quantidade' atividades
+    prompt_reforcado = f"{task_prompt.strip()}\n\nQuantidade esperada de atividades: {quantidade}"
+
+    plan = generate_activity_plan(prompt_reforcado, task_grade)
 
     if not isinstance(plan, list) or len(plan) == 0:
         raise Exception("❌ Plano de atividades retornou vazio ou inválido.")
@@ -15,7 +27,7 @@ def gerar_atividades_diagnosticas(task_prompt: str, task_grade: str = "2º ano")
     atividades = []
     imagem_index = 0
 
-    for atividade in plan:
+    for atividade in plan[:quantidade]:  # 🚫 Corta excesso caso a IA retorne demais
         descricao = atividade.get("descricao", "")
         com_imagem = atividade.get("com_imagem", False)
         imagem_url = imagens_geradas[imagem_index] if com_imagem and imagem_index < len(imagens_geradas) else None
@@ -26,7 +38,7 @@ def gerar_atividades_diagnosticas(task_prompt: str, task_grade: str = "2º ano")
         atividade_gerada = generate_text_from_activity(descricao, imagem_url)
         atividades.append(atividade_gerada)
 
-    # (opcional) validação usando schema
+    # ✅ Validação
     for idx, atividade in enumerate(atividades):
         try:
             Atividade(**atividade)
