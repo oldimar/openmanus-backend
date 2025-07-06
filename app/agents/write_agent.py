@@ -115,9 +115,17 @@ A atividade gerada deve ser estruturada como JSON com os seguintes campos:
 
     try:
         atividade = json.loads(content)
+
+        # 🔒 Corrige imagem_url inválida gerada pela IA
+        if "imagem_url" in atividade and not str(atividade["imagem_url"]).startswith("http"):
+            del atividade["imagem_url"]
+
+        # ✅ Aplica imagem_url correta, se houver
         if imagem_url:
-            atividade["imagem_url"] = imagem_url  # ✅ aplica a imagem no retorno
+            atividade["imagem_url"] = imagem_url
+
         return atividade
+
     except Exception as e:
         print(f"[WRITE_AGENT] ❌ Erro ao interpretar JSON: {e}")
         print("[WRITE_AGENT] Conteúdo da IA:", content)
