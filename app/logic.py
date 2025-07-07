@@ -5,7 +5,7 @@ import re
 from datetime import datetime
 from dotenv import load_dotenv
 
-from app.agents.plan_agent import generate_plan
+from app.agents.plan_agent import generate_plan as generate_activity_plan
 from app.agents.code_agent import generate_code
 from app.agents.write_agent import generate_text, generate_text_from_activity
 from app.agents.report_agent import generate_report
@@ -90,8 +90,7 @@ async def process_task(task_text, task_id):
             save_task_log(task_id=task_id, task_data=task_data, agents_run=["trilha"], results=tasks[task_id]["result"])
             return tasks[task_id]["result"], tasks[task_id]["structured_result"]
 
-        # 🔁 FLUXO ORIGINAL — generate_activity_plan → image → write
-        from app.agents.plan_agent import generate_activity_plan
+        # 🔁 FLUXO ORIGINAL — plan → image → write
         plan_result = generate_activity_plan(final_prompt, task_grade)
 
         if not isinstance(plan_result, list):
@@ -143,7 +142,7 @@ async def process_task(task_text, task_id):
 
 def run_agent_by_type(agent_type, prompt_text, quantidade_atividades=5):
     if agent_type == "plan":
-        return generate_plan(prompt_text)
+        return generate_activity_plan(prompt_text)
     elif agent_type == "code":
         return generate_code(prompt_text)
     elif agent_type == "write":
