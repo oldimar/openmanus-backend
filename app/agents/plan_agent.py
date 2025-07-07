@@ -42,7 +42,8 @@ Gere o plano em formato de texto claro e estruturado.
     return response.choices[0].message.content.strip()
 
 
-# ✅ FUNÇÃO CORRIGIDA — para lista de atividades com JSON válido
+# ✅ FUNÇÃO CORRIGIDA — para lista de atividades com JSON válido e campo tema
+
 def generate_activity_plan(task_description: str, task_grade: str = "2º ano do ensino fundamental"):
     prompt = f"""
 Você é um planejador pedagógico com experiência em educação infantil e ensino fundamental.
@@ -51,18 +52,21 @@ Com base na tarefa a seguir, gere uma **lista de atividades** que possam ser des
 
 - uma breve descrição (campo `descricao`)
 - uma indicação se a atividade deve ter imagem (campo `com_imagem: true` ou `false`)
+- um termo curto e objetivo que represente o que deve ser desenhado caso a atividade tenha imagem (campo `tema`). Ex: "onça", "aluno brincando", "carta de memória". Caso não tenha imagem, use `null` ou "" como tema.
 
 A lista deve ser retornada **no formato JSON**, como no exemplo:
 
 [
-  {{
-    "descricao": "atividade sobre palavra 'gato'",
-    "com_imagem": true
-  }},
-  {{
-    "descricao": "atividade sobre som da letra A",
-    "com_imagem": false
-  }}
+  {
+    "descricao": "atividade sobre o animal onça-pintada",
+    "com_imagem": true,
+    "tema": "onça-pintada"
+  },
+  {
+    "descricao": "atividade de leitura de palavras",
+    "com_imagem": false,
+    "tema": ""
+  }
 ]
 
 Considere que a turma é do {task_grade}.
