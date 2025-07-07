@@ -59,3 +59,42 @@ def format_task_output_as_worksheet(task_id: str, all_results: list[dict], agent
             output.append("\n" + "-" * 80 + "\n")
 
     return "\n".join(output).strip()
+
+
+def format_atividades_para_app(lista_atividades: list[dict]) -> list[dict]:
+    """
+    Garante que cada atividade esteja no formato esperado para o campo structured_result da API.
+    - Adiciona prefixo "ATIVIDADE X - ..." no campo `texto`
+    - Garante que os campos `opcoes` e `imagem_url`/`imagens_url` estejam presentes
+    """
+    atividades_formatadas = []
+
+    for index, atividade in enumerate(lista_atividades, start=1):
+        titulo_original = atividade.get("titulo", "").strip()
+        instrucao = atividade.get("instrucao", "").strip()
+        texto_formatado = ""
+
+        # Força enumeração clara no texto
+        if titulo_original.upper().startswith("ATIVIDADE"):
+            texto_formatado = f"{titulo_original}\n{instrucao}"
+        elif titulo_original:
+            texto_formatado = f"ATIVIDADE {index} - {titulo_original}\n{instrucao}"
+        else:
+            texto_formatado = f"ATIVIDADE {index}\n{instrucao}"
+
+        atividade_formatada = {
+            "texto": texto_formatado.strip(),
+            "opcoes": atividade.get("opcoes", []),
+        }
+
+        # Verifica presença de imagens
+        if "imagem_url" in atividade:
+            atividade_formatada["imagens_url"] = [atividade["imagem_url"]] if atividade["imagem_url"] else []
+        elif "imagens_url" in atividade:
+            atividade_formatada["imagens_url"] = atividade["imagens_url"]
+        else:
+            atividade_formatada["imagens_url"] = []
+
+        atividades_formatadas.append(atividade_formatada)
+
+    return atividades_formatadas
