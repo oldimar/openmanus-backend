@@ -71,11 +71,13 @@ def generate_text_from_activity(descricao: str, imagem_url: str = None) -> dict:
     Gera uma única atividade baseada em descrição e imagem (se houver).
     Retorna um dicionário com os campos da atividade.
     """
+    escaped_descricao = json.dumps(descricao, ensure_ascii=False)
+
     prompt = f"""
 Você é um gerador de atividades interativas para alunos de 6 a 9 anos.
 
 Gere **uma única atividade** com base na seguinte descrição:
-"{descricao}"
+{escaped_descricao}
 """
 
     if imagem_url:
