@@ -15,6 +15,7 @@ from app.agents.task_router_agent import decide_agents
 from app.ocr_reader import extract_text_from_pdf
 from app.formatters import format_task_output_as_worksheet
 from app.parser import parse_task_output_into_structured_data
+from app.task_types.formatters import format_atividades_para_app  # ✅ NOVO
 
 load_dotenv()
 
@@ -74,8 +75,9 @@ async def process_task(task_text, task_id):
         if task_type == "diagnostica":
             from app.task_types.diagnostica import gerar_atividades_diagnosticas
             atividades = gerar_atividades_diagnosticas(final_prompt, task_grade)
+            atividades_formatadas = format_atividades_para_app(atividades)  # ✅ AQUI ENTRA O FORMATO
             tasks[task_id]["result"] = json.dumps(atividades, ensure_ascii=False, indent=2)
-            tasks[task_id]["structured_result"] = atividades
+            tasks[task_id]["structured_result"] = atividades_formatadas
             tasks[task_id]["status"] = "done"
             save_task_log(task_id=task_id, task_data=task_data, agents_run=["diagnostica"], results=tasks[task_id]["result"])
             return tasks[task_id]["result"], tasks[task_id]["structured_result"]
@@ -113,7 +115,6 @@ async def process_task(task_text, task_id):
             if com_imagem and imagem_url:
                 imagem_index += 1
 
-            # ✅ Aqui estava o problema: atividade_index=i era um parâmetro inválido
             atividade_gerada = generate_text_from_activity(descricao, imagem_url=imagem_url)
             atividades_estruturadas.append(atividade_gerada)
 
