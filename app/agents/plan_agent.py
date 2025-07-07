@@ -8,33 +8,31 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
 
-def generate_plan(prompt_text: str, task_grade: str = "") -> list:
+def generate_plan(prompt_text: str, task_grade: str = "", quantidade: int = 5) -> list:
     """
     Gera um plano de atividades com descrições, temas e indicação se requerem imagem.
+    Retorna uma lista com exatamente 'quantidade' atividades.
     """
-    escaped_prompt = json.dumps(prompt_text, ensure_ascii=False)
     prompt = f"""
 Você é um planejador de atividades pedagógicas para alunos de 6 a 9 anos do ensino fundamental.
 
-Com base no pedido do professor abaixo, gere uma lista de atividades, cada uma com os seguintes campos:
-- "descricao": descrição curta e clara da atividade
-- "tema": o tema principal abordado
-- "com_imagem": true ou false, indicando se essa atividade deve conter imagem
+Com base no pedido do professor abaixo, gere exatamente {quantidade} atividades, cada uma no seguinte formato JSON:
+
+{{
+  "descricao": "[breve descrição da atividade]",
+  "tema": "[tema principal da atividade]",
+  "com_imagem": true | false
+}}
+
+Requisitos:
+- A saída deve ser uma **lista JSON válida** com {quantidade} objetos como o exemplo acima.
+- Nenhuma explicação ou texto fora do JSON. Gere apenas o JSON bruto.
+- Evite repetir temas ou descrições.
+- Varie os tipos de atividades (leitura, associação, completar, observar, etc).
+- Use temas compatíveis com alunos do ensino fundamental (animais, objetos, rimas, escola...).
 
 Pedido do professor:
-{escaped_prompt}
-
-Formato de saída JSON esperado:
-[
-  {{
-    "descricao": "atividade sobre o animal onça-pintada",
-    "com_imagem": true,
-    "tema": "onça-pintada"
-  }},
-  ...
-]
-
-❗ Gere apenas o JSON bruto, sem explicações adicionais.
+{prompt_text.strip()}
 """.strip()
 
     try:
@@ -58,12 +56,18 @@ Formato de saída JSON esperado:
         # Debug
         print("[PLAN_AGENT] Conteúdo retornado:", repr(content))
 
+        # Limpeza de blocos markdown
         if content.startswith("```json"):
             content = content.removeprefix("```json").removesuffix("```").strip()
         elif content.startswith("```"):
             content = content.removeprefix("```").removesuffix("```").strip()
 
-        return json.loads(content)
+        atividades = json.loads(content)
+        if isinstance(atividades, list):
+            return atividades
+        else:
+            print("[PLAN_AGENT] ⚠️ JSON recebido não é uma lista.")
+            return []
 
     except Exception as e:
         print(f"[PLAN_AGENT] ❌ Erro ao gerar plano de atividades: {e}")
