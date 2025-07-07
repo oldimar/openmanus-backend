@@ -5,7 +5,6 @@ import re
 from datetime import datetime
 from dotenv import load_dotenv
 
-from app.agents.plan_agent import generate_plan as generate_activity_plan
 from app.agents.code_agent import generate_code
 from app.agents.write_agent import generate_text, generate_text_from_activity
 from app.agents.report_agent import generate_report
@@ -13,9 +12,7 @@ from app.agents.image_agent import generate_images_from_list
 from app.agents.task_router_agent import decide_agents
 
 from app.ocr_reader import extract_text_from_pdf
-from app.formatters import format_task_output_as_worksheet
-from app.parser import parse_task_output_into_structured_data
-from app.formatters import format_atividades_para_app  # ✅ AJUSTADO
+from app.formatters import format_task_output_as_worksheet, format_atividades_para_app
 
 load_dotenv()
 
@@ -71,67 +68,31 @@ async def process_task(task_text, task_id):
 
         quantidade_atividades = extrair_numero_atividades(task_description)
 
-        # ✅ NOVO FLUXO — TAREFA DO TIPO 'diagnostica'
+        # ✅ FLUXO — DIAGNOSTICA
         if task_type == "diagnostica":
             from app.task_types.diagnostica import gerar_atividades_diagnosticas
             atividades = gerar_atividades_diagnosticas(final_prompt, task_grade)
-            atividades_formatadas = format_atividades_para_app(atividades)  # ✅ AQUI ENTRA O FORMATO
+            atividades_formatadas = format_atividades_para_app(atividades)
             tasks[task_id]["result"] = json.dumps(atividades, ensure_ascii=False, indent=2)
             tasks[task_id]["structured_result"] = atividades_formatadas
             tasks[task_id]["status"] = "done"
             save_task_log(task_id=task_id, task_data=task_data, agents_run=["diagnostica"], results=tasks[task_id]["result"])
             return tasks[task_id]["result"], tasks[task_id]["structured_result"]
 
-        # ✅ NOVO FLUXO — TAREFA DO TIPO 'trilha'
+        # ✅ FLUXO — TRILHA
         elif task_type == "trilha":
             from app.task_types.trilha import gerar_atividades_trilha
             atividades = gerar_atividades_trilha(final_prompt, task_grade)
+            atividades_formatadas = format_atividades_para_app(atividades)
             tasks[task_id]["result"] = json.dumps(atividades, ensure_ascii=False, indent=2)
-            tasks[task_id]["structured_result"] = atividades
+            tasks[task_id]["structured_result"] = atividades_formatadas
             tasks[task_id]["status"] = "done"
             save_task_log(task_id=task_id, task_data=task_data, agents_run=["trilha"], results=tasks[task_id]["result"])
             return tasks[task_id]["result"], tasks[task_id]["structured_result"]
 
-        # 🔁 FLUXO ORIGINAL — plan → image → write
-        plan_result = generate_activity_plan(final_prompt, task_grade)
-
-        if not isinstance(plan_result, list):
-            raise Exception("Resposta inválida do agente plan. Esperado: lista de atividades.")
-
-        lista_para_imagem = [
-            {"tema": a.get("tema", ""), "descricao": a.get("descricao", "")}
-            for a in plan_result if a.get("com_imagem") and a.get("tema")
-        ]
-        imagens_geradas = generate_images_from_list(lista_para_imagem) if lista_para_imagem else []
-
-        atividades_estruturadas = []
-        imagem_index = 0
-
-        for i, atividade in enumerate(plan_result, start=1):
-            descricao = atividade.get("descricao", "")
-            com_imagem = atividade.get("com_imagem", False)
-            imagem_url = imagens_geradas[imagem_index] if com_imagem and imagem_index < len(imagens_geradas) else None
-
-            if com_imagem and imagem_url:
-                imagem_index += 1
-
-            atividade_gerada = generate_text_from_activity(descricao, imagem_url=imagem_url)
-            atividades_estruturadas.append(atividade_gerada)
-
-        full_result = json.dumps(atividades_estruturadas, ensure_ascii=False, indent=2)
-
-        atividades_final = parse_task_output_into_structured_data(atividades_estruturadas, agentes=["write"])
-
-        tasks[task_id]["result"] = full_result
-        tasks[task_id]["structured_result"] = atividades_final
-        tasks[task_id]["status"] = "done"
-
-        save_task_log(
-            task_id=task_id,
-            task_data=task_data,
-            agents_run=["plan", "image", "write"],
-            results=full_result
-        )
+        # ❌ FLUXO DESCONHECIDO
+        else:
+            raise Exception(f"Tipo de task '{task_type}' não suportado. Use 'diagnostica' ou 'trilha'.")
 
     except Exception as e:
         erro_msg = f"Erro ao processar a task: {str(e)}"
@@ -143,9 +104,7 @@ async def process_task(task_text, task_id):
 
 
 def run_agent_by_type(agent_type, prompt_text, quantidade_atividades=5):
-    if agent_type == "plan":
-        return generate_activity_plan(prompt_text)
-    elif agent_type == "code":
+    if agent_type == "code":
         return generate_code(prompt_text)
     elif agent_type == "write":
         return generate_text(prompt_text, quantidade_atividades)
