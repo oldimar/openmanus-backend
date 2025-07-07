@@ -1,6 +1,8 @@
 import os
 import time
 import re
+import json
+import unicodedata
 from dotenv import load_dotenv
 from openai import OpenAI
 
@@ -16,9 +18,11 @@ PROMPT_BASE = (
 
 def montar_prompt_imagem(tema: str) -> str:
     """
-    Limpa o tema e insere no prompt base para DALL·E.
+    Limpa o tema, remove acentos e insere no prompt base para DALL·E.
     """
-    tema_limpo = re.sub(r"[^\w\s\-]", "", tema).strip()
+    tema_normalizado = unicodedata.normalize("NFKD", tema)
+    tema_ascii = tema_normalizado.encode("ascii", "ignore").decode("ascii")
+    tema_limpo = re.sub(r"[^\w\s\-]", "", tema_ascii).strip()
     return PROMPT_BASE.format(tema=tema_limpo)
 
 def gerar_imagem_dalle(prompt_en: str, tentativas=0) -> str:
@@ -61,8 +65,13 @@ def generate_images_from_list(lista: list[dict]) -> list[str]:
             imagens.append(None)
             continue
 
-        print(f"[IMAGE_AGENT] 📸 Gerando imagem {idx+1}/{len(lista)} para tema: '{tema}'")
-        prompt = montar_prompt_imagem(tema)
-        url = gerar_imagem_dalle(prompt)
-        imagens.append(url)
+        try:
+            print(f"[IMAGE_AGENT] 📸 Gerando imagem {idx+1}/{len(lista)} para tema: '{tema}'")
+            prompt = montar_prompt_imagem(tema)
+            url = gerar_imagem_dalle(prompt)
+            imagens.append(url)
+        except Exception as e:
+            print(f"[IMAGE_AGENT] ❌ Erro ao gerar imagem para item: {json.dumps(item, ensure_ascii=False)}")
+            print(f"[IMAGE_AGENT] Detalhes do erro: {e}")
+            imagens.append(None)
     return imagens
