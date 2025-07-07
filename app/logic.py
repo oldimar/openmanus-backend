@@ -105,15 +105,15 @@ async def process_task(task_text, task_id):
         atividades_estruturadas = []
         imagem_index = 0
 
-        for atividade in plan_result:
+        for i, atividade in enumerate(plan_result, start=1):
             descricao = atividade.get("descricao", "")
             com_imagem = atividade.get("com_imagem", False)
             imagem_url = imagens_geradas[imagem_index] if com_imagem and imagem_index < len(imagens_geradas) else None
 
-            if com_imagem:
+            if com_imagem and imagem_url:
                 imagem_index += 1
 
-            atividade_gerada = generate_text_from_activity(descricao, imagem_url=imagem_url)
+            atividade_gerada = generate_text_from_activity(descricao, imagem_url=imagem_url, atividade_index=i)
             atividades_estruturadas.append(atividade_gerada)
 
         full_result = json.dumps(atividades_estruturadas, ensure_ascii=False, indent=2)
