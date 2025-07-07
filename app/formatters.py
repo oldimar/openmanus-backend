@@ -61,40 +61,27 @@ def format_task_output_as_worksheet(task_id: str, all_results: list[dict], agent
     return "\n".join(output).strip()
 
 
-def format_atividades_para_app(lista_atividades: list[dict]) -> list[dict]:
+def format_atividades_para_app(atividades: list[dict]) -> list[dict]:
     """
-    Garante que cada atividade esteja no formato esperado para o campo structured_result da API.
-    - Adiciona prefixo "ATIVIDADE X - ..." no campo `texto`
-    - Garante que os campos `opcoes` e `imagem_url`/`imagens_url` estejam presentes
+    Formata uma lista de atividades no padrão usado pelo front:
+    - texto: inclui "ATIVIDADE X" e a instrução (com emoji 🔊)
+    - opcoes: lista de alternativas
+    - imagens_url: lista com 1 URL (se houver)
     """
-    atividades_formatadas = []
+    resultado_formatado = []
 
-    for index, atividade in enumerate(lista_atividades, start=1):
-        titulo_original = atividade.get("titulo", "").strip()
+    for idx, atividade in enumerate(atividades, start=1):
+        titulo = f"ATIVIDADE {idx}"
         instrucao = atividade.get("instrucao", "").strip()
-        texto_formatado = ""
+        texto = f"{titulo}\n🔊 {instrucao}" if instrucao else titulo
 
-        # Força enumeração clara no texto
-        if titulo_original.upper().startswith("ATIVIDADE"):
-            texto_formatado = f"{titulo_original}\n{instrucao}"
-        elif titulo_original:
-            texto_formatado = f"ATIVIDADE {index} - {titulo_original}\n{instrucao}"
-        else:
-            texto_formatado = f"ATIVIDADE {index}\n{instrucao}"
+        opcoes = atividade.get("opcoes", [])
+        imagem = atividade.get("imagem_url")
 
-        atividade_formatada = {
-            "texto": texto_formatado.strip(),
-            "opcoes": atividade.get("opcoes", []),
-        }
+        resultado_formatado.append({
+            "texto": texto,
+            "opcoes": opcoes,
+            "imagens_url": [imagem] if imagem else []
+        })
 
-        # Verifica presença de imagens
-        if "imagem_url" in atividade:
-            atividade_formatada["imagens_url"] = [atividade["imagem_url"]] if atividade["imagem_url"] else []
-        elif "imagens_url" in atividade:
-            atividade_formatada["imagens_url"] = atividade["imagens_url"]
-        else:
-            atividade_formatada["imagens_url"] = []
-
-        atividades_formatadas.append(atividade_formatada)
-
-    return atividades_formatadas
+    return resultado_formatado
