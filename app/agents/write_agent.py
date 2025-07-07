@@ -61,7 +61,7 @@ Formato de saída JSON esperado:
     return response.choices[0].message.content.strip()
 
 
-def generate_text_from_activity(descricao: str, imagem_url: str = None) -> dict:
+def generate_text_from_activity(descricao: str, imagem_url: str = None, atividade_index: int = None) -> dict:
     escaped_descricao = json.dumps(descricao, ensure_ascii=False)
 
     prompt = f"""
@@ -74,12 +74,15 @@ Gere **uma única atividade** com base na seguinte descrição:
     if imagem_url:
         prompt += f'\nA atividade deve considerar e fazer referência à seguinte imagem ilustrativa: {imagem_url}'
 
+    if atividade_index is not None:
+        prompt += f'\nO campo "titulo" deve ser: "ATIVIDADE {atividade_index + 1}"'
+
     prompt += """
 
 A atividade gerada deve ser estruturada como JSON com os seguintes campos:
 
 {
-  "titulo": "ATIVIDADE 1",
+  "titulo": "ATIVIDADE X",
   "instrucao": "🔊 [instrução curta e clara]",
   "opcoes": [
     "( ) alternativa A",
@@ -111,7 +114,7 @@ A atividade gerada deve ser estruturada como JSON com os seguintes campos:
     if not content:
         print("[WRITE_AGENT] ⚠️ Resposta vazia da IA.")
         return {
-            "titulo": "ATIVIDADE GERADA",
+            "titulo": f"ATIVIDADE {atividade_index + 1}" if atividade_index is not None else "ATIVIDADE GERADA",
             "instrucao": "🔊 A IA não retornou nenhuma atividade.",
             "opcoes": ["( ) Alternativa 1", "( ) Alternativa 2"],
             "imagem_url": imagem_url if is_valid_url(imagem_url or "") else None
@@ -127,13 +130,16 @@ A atividade gerada deve ser estruturada como JSON com os seguintes campos:
         if imagem_url and is_valid_url(imagem_url):
             atividade["imagem_url"] = imagem_url
 
+        if atividade_index is not None:
+            atividade["titulo"] = f"ATIVIDADE {atividade_index + 1}"
+
         return atividade
 
     except Exception as e:
         print(f"[WRITE_AGENT] ❌ Erro ao interpretar JSON: {e}")
         print("[WRITE_AGENT] Conteúdo da IA:", repr(content))
         return {
-            "titulo": "ATIVIDADE MALFORMADA",
+            "titulo": f"ATIVIDADE {atividade_index + 1}" if atividade_index is not None else "ATIVIDADE MALFORMADA",
             "instrucao": "🔊 A IA gerou uma resposta, mas ela não pôde ser interpretada como JSON.",
             "opcoes": [content],
             "imagem_url": imagem_url if is_valid_url(imagem_url or "") else None
