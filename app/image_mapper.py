@@ -1,5 +1,5 @@
 import random
-from app.agents.image_agent import fetch_image_from_pixabay
+from app.agents.image_agent import generate_images_from_list
 from app.agents.text_agent import extract_activity_theme  # IA para extrair tema da atividade
 
 def associate_images_to_activities(atividades: list[dict], max_com_imagem: int = 4, task_grade: str = "") -> list[dict]:
@@ -20,9 +20,10 @@ def associate_images_to_activities(atividades: list[dict], max_com_imagem: int =
             texto_base = atividade.get("texto", "")
             try:
                 tema = extract_activity_theme(texto_base, task_grade=task_grade)
-                urls = fetch_image_from_pixabay(tema, quantidade=1)  # busca só 1 imagem
+                urls = generate_images_from_list([tema])
                 if urls and isinstance(urls, list) and urls[0].startswith("http"):
-                    atividade["imagens_url"] = [urls[0]]  # adiciona só a primeira
+                    atividade["imagens_url"] = [urls[0]]
+
                 else:
                     print(f"[imagem] Nenhuma imagem válida encontrada para tema '{tema}'.")
 
