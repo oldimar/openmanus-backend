@@ -1,77 +1,55 @@
 import os
-import time
-import re
 import json
-import unicodedata
-from dotenv import load_dotenv
 from openai import OpenAI
+from dotenv import load_dotenv
 
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+model = os.getenv("OPENAI_MODEL", "dall-e-3")
 
-# 🎯 Prompt base para o estilo coloring book (cartoon preto e branco)
-PROMPT_BASE = (
-    "A cute black and white cartoon-style line drawing of {tema}, "
-    "with bold outlines, no color, and no shading. "
-    "Child-friendly and simple, perfect for coloring books. Clean white background."
-)
 
-def montar_prompt_imagem(tema: str) -> str:
+def generate_image(description: str) -> str:
     """
-    Limpa o tema, remove acentos e insere no prompt base para DALL·E.
+    Gera uma imagem no estilo 'coloring book' (infantil P&B) com base em uma descrição.
     """
-    tema_normalizado = unicodedata.normalize("NFKD", tema)
-    tema_ascii = tema_normalizado.encode("ascii", "ignore").decode("ascii")
-    tema_limpo = re.sub(r"[^\w\s\-]", "", tema_ascii).strip()
-    return PROMPT_BASE.replace("{tema}", tema_limpo)
+    escaped_description = json.dumps(description, ensure_ascii=False)
+    prompt = f"""
+Generate a black and white cartoon-style line drawing about the following description, suitable for children's coloring books. 
+Use bold outlines, no color or shading, clean white background.
 
-def gerar_imagem_dalle(prompt_en: str, tentativas=0) -> str:
+Description:
+{escaped_description}
+""".strip()
+
     try:
-        print(f"[DALL·E] 🎨 Gerando imagem com prompt: {prompt_en}")
         response = client.images.generate(
-            model="dall-e-3",
-            prompt=prompt_en,
+            model=model,
+            prompt=prompt,
             n=1,
             size="1024x1024",
-            quality="standard"
+            style="natural"
         )
         url = response.data[0].url
-        print(f"[DALL·E] ✅ Imagem gerada: {url}")
+        print(f"[IMAGE_AGENT] ✅ Imagem gerada para descrição: {description} → {url}")
         return url
-
     except Exception as e:
-        if tentativas < 1:
-            print(f"[DALL·E] ⚠️ Erro, tentando fallback... {e}")
-            time.sleep(2)
-            prompt_fallback = montar_prompt_imagem("a forest animal")
-            return gerar_imagem_dalle(prompt_fallback, tentativas + 1)
+        print(f"[IMAGE_AGENT] ❌ Erro ao gerar imagem para descrição '{description}': {e}")
+        return ""
+
+
+def generate_images_from_list(lista_descricoes: list) -> list:
+    """
+    Gera imagens para uma lista de atividades. Cada item da lista deve ter 'descricao'.
+    Retorna uma lista de URLs na mesma ordem.
+    """
+    urls = []
+
+    for atividade in lista_descricoes:
+        descricao = atividade.get("descricao", "")
+        if descricao:
+            url = generate_image(descricao)
+            urls.append(url)
         else:
-            print(f"[DALL·E] ❌ Falha ao gerar imagem: {e}")
-            return "https://cdn.pixabay.com/photo/2020/12/09/20/07/education-5816931_1280.jpg"
+            urls.append("")
 
-def generate_images_from_list(lista: list[dict]) -> list[str]:
-    """
-    Gera imagens com base nos temas passados como lista de dicionários.
-    Exemplo de entrada:
-    [{"tema": "onça-pintada"}, {"tema": "tatu-bola"}]
-
-    Retorna lista com as URLs das imagens geradas.
-    """
-    imagens = []
-    for idx, item in enumerate(lista):
-        tema = item.get("tema", "").strip()
-        if not tema:
-            print(f"[IMAGE_AGENT] ⚠️ Tema ausente para item {idx+1}, pulando...")
-            imagens.append(None)
-            continue
-
-        try:
-            print(f"[IMAGE_AGENT] 📸 Gerando imagem {idx+1}/{len(lista)} para tema: '{tema}'")
-            prompt = montar_prompt_imagem(tema)
-            url = gerar_imagem_dalle(prompt)
-            imagens.append(url)
-        except Exception as e:
-            print(f"[IMAGE_AGENT] ❌ Erro ao gerar imagem para item: {json.dumps(item, ensure_ascii=False)}")
-            print(f"[IMAGE_AGENT] Detalhes do erro: {e}")
-            imagens.append(None)
-    return imagens
+    return urls
