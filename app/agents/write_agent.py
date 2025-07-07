@@ -10,9 +10,6 @@ model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
 
 def is_valid_url(url: str) -> bool:
-    """
-    Verifica se uma string é uma URL válida com esquema e domínio.
-    """
     try:
         result = urlparse(url)
         return all([result.scheme, result.netloc])
@@ -21,15 +18,13 @@ def is_valid_url(url: str) -> bool:
 
 
 def generate_text(task_description: str, quantidade_atividades: int = 5) -> str:
-    """
-    Gera várias atividades com base em um prompt genérico.
-    """
+    escaped_description = json.dumps(task_description, ensure_ascii=False)
     prompt = f"""
 Você é um gerador de atividades pedagógicas interativas para alunos do 2º ao 3º ano do ensino fundamental (6 a 9 anos).
 Com base no pedido abaixo, gere exatamente {quantidade_atividades} atividades no formato JSON válido.
 
 Requisito do usuário:
-"{task_description}"
+{escaped_description}
 
 Cada atividade deve conter:
 - Um campo "titulo" com texto como "ATIVIDADE 1", "ATIVIDADE 2" etc.
@@ -67,10 +62,6 @@ Formato de saída JSON esperado:
 
 
 def generate_text_from_activity(descricao: str, imagem_url: str = None) -> dict:
-    """
-    Gera uma única atividade baseada em descrição e imagem (se houver).
-    Retorna um dicionário com os campos da atividade.
-    """
     escaped_descricao = json.dumps(descricao, ensure_ascii=False)
 
     prompt = f"""
@@ -112,7 +103,6 @@ A atividade gerada deve ser estruturada como JSON com os seguintes campos:
 
     content = response.choices[0].message.content.strip()
 
-    # ⚠️ Corrige blocos ```json
     if content.startswith("```json"):
         content = content.removeprefix("```json").removesuffix("```").strip()
     elif content.startswith("```"):
@@ -130,12 +120,10 @@ A atividade gerada deve ser estruturada como JSON com os seguintes campos:
     try:
         atividade = json.loads(content)
 
-        # 🔒 Valida imagem_url retornada pela IA (se houver)
         if "imagem_url" in atividade and not is_valid_url(str(atividade["imagem_url"])):
             print("[WRITE_AGENT] ❌ imagem_url inválida da IA removida:", json.dumps(atividade, ensure_ascii=False))
             del atividade["imagem_url"]
 
-        # ✅ Sobrescreve imagem_url se uma URL válida foi recebida externamente
         if imagem_url and is_valid_url(imagem_url):
             atividade["imagem_url"] = imagem_url
 
