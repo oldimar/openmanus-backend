@@ -1,4 +1,4 @@
-import os
+import os 
 import json
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -17,7 +17,7 @@ def is_valid_url(url: str) -> bool:
         return False
 
 
-def generate_text(task_description: str, quantidade_atividades: int = 5) -> str:
+def generate_text(task_description: str, quantidade_atividades: int = 5) -> list:
     escaped_description = json.dumps(task_description, ensure_ascii=False)
     prompt = f"""
 Você é um gerador de atividades pedagógicas interativas para alunos do 2º ao 3º ano do ensino fundamental (6 a 9 anos).
@@ -58,7 +58,25 @@ Formato de saída JSON esperado:
         temperature=0.4
     )
 
-    return response.choices[0].message.content.strip()
+    content = response.choices[0].message.content.strip()
+
+    # Remove possíveis blocos de markdown
+    if content.startswith("```json"):
+        content = content.removeprefix("```json").removesuffix("```").strip()
+    elif content.startswith("```"):
+        content = content.removeprefix("```").removesuffix("```").strip()
+
+    try:
+        atividades = json.loads(content)
+        if isinstance(atividades, list):
+            return atividades
+        else:
+            print("[WRITE_AGENT] ⚠️ IA retornou JSON, mas não é uma lista.")
+            return []
+    except Exception as e:
+        print(f"[WRITE_AGENT] ❌ Erro ao interpretar JSON da IA: {e}")
+        print("[WRITE_AGENT] Conteúdo recebido:", repr(content))
+        return []
 
 
 def generate_text_from_activity(descricao: str, imagem_url: str = None, atividade_index: int = None) -> dict:
@@ -120,10 +138,7 @@ A atividade gerada deve ser estruturada como JSON com os seguintes campos:
     try:
         atividade = json.loads(content)
 
-        # Sempre adiciona imagem_url, mesmo se None
         atividade["imagem_url"] = imagem_url if is_valid_url(imagem_url or "") else None
-
-        # Nunca sobrescreve título — respeita o que a IA retornou
 
         return atividade
 
