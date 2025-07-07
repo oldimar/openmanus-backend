@@ -8,7 +8,7 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
 
-def generate_activity_plan(prompt_text: str, task_grade: str = "") -> list:
+def generate_plan(prompt_text: str) -> list:
     """
     Gera um plano de atividades com descrições, temas e indicação se requerem imagem.
     """
@@ -55,7 +55,7 @@ Formato de saída JSON esperado:
 
         content = response.choices[0].message.content.strip()
 
-        # Debug: Exibir conteúdo bruto da IA
+        # 🧪 DEBUG
         print("[PLAN_AGENT] Conteúdo retornado:", repr(content))
 
         # Corrige blocos ```json
