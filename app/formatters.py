@@ -68,20 +68,33 @@ def format_atividades_para_app(atividades: list[dict]) -> list[dict]:
     - opcoes: lista de alternativas
     - imagens_url: lista com 1 URL (se houver)
     """
+    if not isinstance(atividades, list) or not atividades:
+        return []
+
     resultado_formatado = []
 
     for idx, atividade in enumerate(atividades, start=1):
         titulo = f"ATIVIDADE {idx}"
-        instrucao = atividade.get("instrucao", "").strip()
+
+        instrucao = (
+            atividade.get("instrucao") or
+            atividade.get("texto") or
+            atividade.get("titulo") or ""
+        ).strip()
+
         texto = f"{titulo}\n🔊 {instrucao}" if instrucao else titulo
 
-        opcoes = atividade.get("opcoes", [])
-        imagem = atividade.get("imagem_url")
+        opcoes = atividade.get("opcoes") or []
+        if not isinstance(opcoes, list):
+            opcoes = [str(opcoes)]
+
+        imagem_url = atividade.get("imagem_url") or ""
+        imagens_url = [imagem_url] if imagem_url and imagem_url.startswith("http") else []
 
         resultado_formatado.append({
             "texto": texto,
             "opcoes": opcoes,
-            "imagens_url": [imagem] if imagem else []
+            "imagens_url": imagens_url
         })
 
     return resultado_formatado
