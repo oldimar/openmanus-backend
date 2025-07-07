@@ -5,8 +5,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-model = os.getenv("OPENAI_MODEL", "dall-e-3")
 
+# Força o uso de um modelo de imagem suportado
+MODEL_IMAGEM = "dall-e-3"
 
 def generate_image(description: str) -> str:
     """
@@ -23,7 +24,7 @@ Description:
 
     try:
         response = client.images.generate(
-            model=model,
+            model=MODEL_IMAGEM,
             prompt=prompt,
             n=1,
             size="1024x1024",
