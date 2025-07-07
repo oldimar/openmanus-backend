@@ -7,7 +7,7 @@ from openai import OpenAI
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# 🧠 Prompt base para imagens em estilo "coloring book"
+# 🎯 Prompt base para o estilo coloring book (cartoon preto e branco)
 PROMPT_BASE = (
     "A cute black and white cartoon-style line drawing of {tema}, "
     "with bold outlines, no color, and no shading. "
@@ -16,11 +16,10 @@ PROMPT_BASE = (
 
 def montar_prompt_imagem(tema: str) -> str:
     """
-    Gera prompt em inglês baseado no tema do objeto ou animal.
+    Limpa o tema e insere no prompt base para DALL·E.
     """
-    tema_limpo = re.sub(r"[^\w\s]", "", tema).strip()
+    tema_limpo = re.sub(r"[^\w\s\-]", "", tema).strip()
     return PROMPT_BASE.format(tema=tema_limpo)
-
 
 def gerar_imagem_dalle(prompt_en: str, tentativas=0) -> str:
     try:
@@ -40,19 +39,19 @@ def gerar_imagem_dalle(prompt_en: str, tentativas=0) -> str:
         if tentativas < 1:
             print(f"[DALL·E] ⚠️ Erro, tentando fallback... {e}")
             time.sleep(2)
-            fallback_prompt = montar_prompt_imagem("a forest animal")
-            return gerar_imagem_dalle(fallback_prompt, tentativas + 1)
+            prompt_fallback = montar_prompt_imagem("a forest animal")
+            return gerar_imagem_dalle(prompt_fallback, tentativas + 1)
         else:
             print(f"[DALL·E] ❌ Falha ao gerar imagem: {e}")
             return "https://cdn.pixabay.com/photo/2020/12/09/20/07/education-5816931_1280.jpg"
 
-
 def generate_images_from_list(lista: list[dict]) -> list[str]:
     """
-    Espera uma lista de objetos no formato:
-    [{"tema": "macaco"}, {"tema": "onça"}, ...]
+    Gera imagens com base nos temas passados como lista de dicionários.
+    Exemplo de entrada:
+    [{"tema": "onça-pintada"}, {"tema": "tatu-bola"}]
 
-    Retorna lista de URLs das imagens geradas.
+    Retorna lista com as URLs das imagens geradas.
     """
     imagens = []
     for idx, item in enumerate(lista):
@@ -62,7 +61,7 @@ def generate_images_from_list(lista: list[dict]) -> list[str]:
             imagens.append(None)
             continue
 
-        print(f"[IMAGE_AGENT] Buscando imagem {idx+1}/{len(lista)} para tema: '{tema}'")
+        print(f"[IMAGE_AGENT] 📸 Gerando imagem {idx+1}/{len(lista)} para tema: '{tema}'")
         prompt = montar_prompt_imagem(tema)
         url = gerar_imagem_dalle(prompt)
         imagens.append(url)
