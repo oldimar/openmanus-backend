@@ -22,6 +22,7 @@ tasks = {}
 UPLOAD_FOLDER = "uploads"
 model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
+
 def extrair_numero_atividades(descricao: str, default: int = 5) -> int:
     match = re.search(r"\b(\d+)\s+(atividades|questões|perguntas|exercícios)", descricao.lower())
     if match:
@@ -73,7 +74,6 @@ async def process_task(task_text, task_id):
         if task_type == "diagnostica":
             from app.task_types.diagnostica import gerar_atividades_diagnosticas
             atividades = gerar_atividades_diagnosticas(final_prompt, task_grade)
-            formatted_result = format_task_output_as_worksheet(task_id, atividades, ["diagnostica"])
             tasks[task_id]["result"] = json.dumps(atividades, ensure_ascii=False, indent=2)
             tasks[task_id]["structured_result"] = atividades
             tasks[task_id]["status"] = "done"
@@ -84,7 +84,6 @@ async def process_task(task_text, task_id):
         elif task_type == "trilha":
             from app.task_types.trilha import gerar_atividades_trilha
             atividades = gerar_atividades_trilha(final_prompt, task_grade)
-            formatted_result = format_task_output_as_worksheet(task_id, atividades, ["trilha"])
             tasks[task_id]["result"] = json.dumps(atividades, ensure_ascii=False, indent=2)
             tasks[task_id]["structured_result"] = atividades
             tasks[task_id]["status"] = "done"
@@ -121,7 +120,6 @@ async def process_task(task_text, task_id):
         full_result = json.dumps(atividades_estruturadas, ensure_ascii=False, indent=2)
 
         atividades_final = parse_task_output_into_structured_data(atividades_estruturadas, agentes=["write"])
-        resultado_formatado = format_task_output_as_worksheet(task_id, atividades_final, agents_run=["plan", "image", "write"])
 
         tasks[task_id]["result"] = full_result
         tasks[task_id]["structured_result"] = atividades_final
@@ -135,9 +133,10 @@ async def process_task(task_text, task_id):
         )
 
     except Exception as e:
+        erro_msg = f"Erro ao processar a task: {str(e)}"
         tasks[task_id]["status"] = "error"
-        tasks[task_id]["result"] = f"Erro ao processar a task: {str(e)}"
-        save_task_log(task_id, task_data, [], tasks[task_id]["result"])
+        tasks[task_id]["result"] = erro_msg
+        save_task_log(task_id, task_data if 'task_data' in locals() else {}, [], erro_msg)
 
     return tasks[task_id]["result"], tasks[task_id]["structured_result"]
 
