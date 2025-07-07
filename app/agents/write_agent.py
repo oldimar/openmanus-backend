@@ -126,25 +126,25 @@ A atividade gerada deve ser estruturada como JSON com os seguintes campos:
         }
 
     try:
-    atividade = json.loads(content)
+        atividade = json.loads(content)
 
-    # 🔒 Valida imagem_url retornada pela IA (se houver)
-    if "imagem_url" in atividade and not is_valid_url(str(atividade["imagem_url"])):
-        print("[WRITE_AGENT] ❌ imagem_url inválida da IA removida:", json.dumps(atividade, ensure_ascii=False))
-        del atividade["imagem_url"]
+        # 🔒 Valida imagem_url retornada pela IA (se houver)
+        if "imagem_url" in atividade and not is_valid_url(str(atividade["imagem_url"])):
+            print("[WRITE_AGENT] ❌ imagem_url inválida da IA removida:", json.dumps(atividade, ensure_ascii=False))
+            del atividade["imagem_url"]
 
-    # ✅ Sobrescreve imagem_url se uma URL válida foi recebida externamente
-    if imagem_url and is_valid_url(imagem_url):
-        atividade["imagem_url"] = imagem_url
+        # ✅ Sobrescreve imagem_url se uma URL válida foi recebida externamente
+        if imagem_url and is_valid_url(imagem_url):
+            atividade["imagem_url"] = imagem_url
 
-    return atividade
+        return atividade
 
-except Exception as e:
-    print(f"[WRITE_AGENT] ❌ Erro ao interpretar JSON: {e}")
-    print("[WRITE_AGENT] Conteúdo da IA:", repr(content))
-    return {
-        "titulo": "ATIVIDADE MALFORMADA",
-        "instrucao": "🔊 A IA gerou uma resposta, mas ela não pôde ser interpretada como JSON.",
-        "opcoes": [content],
-        "imagem_url": imagem_url if is_valid_url(imagem_url or "") else None
-    }
+    except Exception as e:
+        print(f"[WRITE_AGENT] ❌ Erro ao interpretar JSON: {e}")
+        print("[WRITE_AGENT] Conteúdo da IA:", repr(content))
+        return {
+            "titulo": "ATIVIDADE MALFORMADA",
+            "instrucao": "🔊 A IA gerou uma resposta, mas ela não pôde ser interpretada como JSON.",
+            "opcoes": [content],
+            "imagem_url": imagem_url if is_valid_url(imagem_url or "") else None
+        }
