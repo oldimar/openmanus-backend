@@ -22,7 +22,6 @@ tasks = {}
 UPLOAD_FOLDER = "uploads"
 model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
-
 def extrair_numero_atividades(descricao: str, default: int = 5) -> int:
     match = re.search(r"\b(\d+)\s+(atividades|questões|perguntas|exercícios)", descricao.lower())
     if match:
@@ -70,7 +69,6 @@ async def process_task(task_text, task_id):
 
         quantidade_atividades = extrair_numero_atividades(task_description)
 
-        # ✅ NOVO FLUXO — TAREFA DO TIPO 'diagnostica'
         if task_type == "diagnostica":
             from app.task_types.diagnostica import gerar_atividades_diagnosticas
             atividades = gerar_atividades_diagnosticas(final_prompt, task_grade)
@@ -81,7 +79,6 @@ async def process_task(task_text, task_id):
             save_task_log(task_id=task_id, task_data=task_data, agents_run=["diagnostica"], results=tasks[task_id]["result"])
             return tasks[task_id]["result"], tasks[task_id]["structured_result"]
 
-        # ✅ NOVO FLUXO — TAREFA DO TIPO 'trilha'
         elif task_type == "trilha":
             from app.task_types.trilha import gerar_atividades_trilha
             atividades = gerar_atividades_trilha(final_prompt, task_grade)
@@ -92,15 +89,14 @@ async def process_task(task_text, task_id):
             save_task_log(task_id=task_id, task_data=task_data, agents_run=["trilha"], results=tasks[task_id]["result"])
             return tasks[task_id]["result"], tasks[task_id]["structured_result"]
 
-        # 🔁 FLUXO ORIGINAL — generate_activity_plan → image → write
         from app.agents.plan_agent import generate_activity_plan
         plan_result = generate_activity_plan(final_prompt, task_grade)
 
         if not isinstance(plan_result, list):
             raise Exception("Resposta inválida do agente plan. Esperado: lista de atividades.")
 
-        descricoes_com_imagem = [a["descricao"] for a in plan_result if a.get("com_imagem")]
-        imagens_geradas = generate_images_from_list(descricoes_com_imagem) if descricoes_com_imagem else []
+        lista_para_imagem = [a for a in plan_result if a.get("com_imagem") and a.get("tema")]
+        imagens_geradas = generate_images_from_list(lista_para_imagem) if lista_para_imagem else []
 
         atividades_estruturadas = []
         imagem_index = 0
@@ -117,7 +113,6 @@ async def process_task(task_text, task_id):
             atividades_estruturadas.append(atividade_gerada)
 
         full_result = json.dumps(atividades_estruturadas, ensure_ascii=False, indent=2)
-
         atividades_final = parse_task_output_into_structured_data(atividades_estruturadas, agentes=["write"])
         resultado_formatado = format_task_output_as_worksheet(task_id, atividades_final, agents_run=["plan", "image", "write"])
 
@@ -150,7 +145,7 @@ def run_agent_by_type(agent_type, prompt_text, quantidade_atividades=5):
     elif agent_type == "report":
         return generate_report(prompt_text)
     elif agent_type == "image":
-        return generate_images_from_list([prompt_text])
+        return generate_images_from_list([{"tema": prompt_text}])
     else:
         raise Exception(f"Agente desconhecido: '{agent_type}'")
 
