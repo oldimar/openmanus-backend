@@ -5,6 +5,7 @@ from app.ocr_reader import extract_text_from_pdf
 from fastapi.responses import FileResponse
 import uuid
 import os
+import traceback
 from datetime import datetime
 
 app = FastAPI()
@@ -16,8 +17,8 @@ DOCX_FOLDER = "generated_docs"
 # ✅ Rota 1: Criar uma task (processamento de IA)
 @app.post("/tasks/")
 async def create_task(task_text: dict = Body(...)):
+    task_id = str(uuid.uuid4())
     try:
-        task_id = str(uuid.uuid4())
         result, structured = await process_task(task_text, task_id)
         tasks[task_id] = {
             "status": "done",
@@ -26,6 +27,8 @@ async def create_task(task_text: dict = Body(...)):
         }
         return {"task_id": task_id, "status": "done"}
     except Exception as e:
+        print(f"\n[MAIN] ❌ Erro ao processar task {task_id}: {e}")
+        traceback.print_exc()
         error_msg = f"Erro ao processar a task: {str(e)}"
         tasks[task_id] = {"status": "error", "result": error_msg}
         return {"task_id": task_id, "status": "error", "result": error_msg}
