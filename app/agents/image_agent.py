@@ -23,7 +23,7 @@ def montar_prompt_imagem(tema: str) -> str:
     tema_normalizado = unicodedata.normalize("NFKD", tema)
     tema_ascii = tema_normalizado.encode("ascii", "ignore").decode("ascii")
     tema_limpo = re.sub(r"[^\w\s\-]", "", tema_ascii).strip()
-    return PROMPT_BASE.format(tema=tema_limpo)
+    return PROMPT_BASE.replace("{tema}", tema_limpo)
 
 def gerar_imagem_dalle(prompt_en: str, tentativas=0) -> str:
     try:
