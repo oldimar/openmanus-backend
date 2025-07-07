@@ -1,6 +1,6 @@
 import re
 from app.agents.plan_agent import generate_activity_plan
-from app.agents.image_agent import fetch_image_from_pixabay
+from app.agents.image_agent import generate_images_from_list
 from app.agents.write_agent import generate_text_from_activity
 from app.atividade_schema import Atividade
 
@@ -31,7 +31,7 @@ def gerar_atividades_diagnosticas(task_prompt: str, task_grade: str = "2º ano")
         # 🔍 Busca imagem imediatamente se necessário
         imagem_url = None
         if com_imagem:
-            urls = fetch_image_from_pixabay(descricao, quantidade=1)
+            urls = generate_images_from_list([descricao])
             imagem_url = urls[0] if urls else None
 
         atividade_gerada = generate_text_from_activity(descricao, imagem_url)
