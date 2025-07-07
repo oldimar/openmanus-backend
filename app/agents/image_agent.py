@@ -55,7 +55,8 @@ def generate_images_from_list(lista: list[dict]) -> list[str]:
     """
     imagens = []
     for idx, item in enumerate(lista):
-        tema = item.get("tema", "").strip()
+        tema_raw = item.get("tema", "")
+        tema = str(tema_raw).strip() if isinstance(tema_raw, str) else ""
         if not tema:
             print(f"[IMAGE_AGENT] ⚠️ Tema ausente para item {idx+1}, pulando...")
             imagens.append(None)
