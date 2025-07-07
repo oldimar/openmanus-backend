@@ -74,9 +74,6 @@ Gere **uma única atividade** com base na seguinte descrição:
     if imagem_url:
         prompt += f'\nA atividade deve considerar e fazer referência à seguinte imagem ilustrativa: {imagem_url}'
 
-    if atividade_index is not None:
-        prompt += f'\nO campo "titulo" deve ser: "ATIVIDADE {atividade_index + 1}"'
-
     prompt += """
 
 A atividade gerada deve ser estruturada como JSON com os seguintes campos:
@@ -123,15 +120,10 @@ A atividade gerada deve ser estruturada como JSON com os seguintes campos:
     try:
         atividade = json.loads(content)
 
-        if "imagem_url" in atividade and not is_valid_url(str(atividade["imagem_url"])):
-            print("[WRITE_AGENT] ❌ imagem_url inválida da IA removida:", json.dumps(atividade, ensure_ascii=False))
-            del atividade["imagem_url"]
+        # Sempre adiciona imagem_url, mesmo se None
+        atividade["imagem_url"] = imagem_url if is_valid_url(imagem_url or "") else None
 
-        if imagem_url and is_valid_url(imagem_url):
-            atividade["imagem_url"] = imagem_url
-
-        if atividade_index is not None:
-            atividade["titulo"] = f"ATIVIDADE {atividade_index + 1}"
+        # Nunca sobrescreve título — respeita o que a IA retornou
 
         return atividade
 
