@@ -15,7 +15,7 @@ from app.agents.task_router_agent import decide_agents
 from app.ocr_reader import extract_text_from_pdf
 from app.formatters import format_task_output_as_worksheet
 from app.parser import parse_task_output_into_structured_data
-from app.task_types.formatters import format_atividades_para_app  # ✅ NOVO
+from app.formatters import format_atividades_para_app  # ✅ AJUSTADO
 
 load_dotenv()
 
