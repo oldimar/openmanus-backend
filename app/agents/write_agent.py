@@ -1,4 +1,4 @@
-import os 
+import os
 import json
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -18,6 +18,9 @@ def is_valid_url(url: str) -> bool:
 
 
 def generate_text(task_description: str, quantidade_atividades: int = 5) -> list:
+    """
+    Gera múltiplas atividades pedagógicas com base no pedido do usuário.
+    """
     escaped_description = json.dumps(task_description, ensure_ascii=False)
     prompt = f"""
 Você é um gerador de atividades pedagógicas interativas para alunos do 2º ao 3º ano do ensino fundamental (6 a 9 anos).
@@ -60,7 +63,6 @@ Formato de saída JSON esperado:
 
     content = response.choices[0].message.content.strip()
 
-    # Remove possíveis blocos de markdown
     if content.startswith("```json"):
         content = content.removeprefix("```json").removesuffix("```").strip()
     elif content.startswith("```"):
@@ -80,6 +82,9 @@ Formato de saída JSON esperado:
 
 
 def generate_text_from_activity(descricao: str, imagem_url: str = None, atividade_index: int = None) -> dict:
+    """
+    Gera uma única atividade com base na descrição e (opcionalmente) uma imagem.
+    """
     escaped_descricao = json.dumps(descricao, ensure_ascii=False)
 
     prompt = f"""
@@ -138,7 +143,12 @@ A atividade gerada deve ser estruturada como JSON com os seguintes campos:
     try:
         atividade = json.loads(content)
 
+        # Garante imagem válida
         atividade["imagem_url"] = imagem_url if is_valid_url(imagem_url or "") else None
+
+        # Força título padronizado, mesmo que a IA esqueça
+        if atividade_index is not None:
+            atividade["titulo"] = f"ATIVIDADE {atividade_index + 1}"
 
         return atividade
 
