@@ -66,4 +66,3 @@ def generate_images_from_list(lista: list[dict]) -> list[str]:
         url = gerar_imagem_dalle(prompt)
         imagens.append(url)
     return imagens
-
