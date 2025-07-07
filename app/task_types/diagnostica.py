@@ -1,7 +1,7 @@
 import re
 from app.agents.plan_agent import generate_activity_plan
 from app.agents.image_agent import generate_images_from_list
-from app.agents.write_agent import generate_text_from_activity
+from app.agents.write_agent import generate_text
 from app.atividade_schema import Atividade
 
 
@@ -17,45 +17,46 @@ def gerar_atividades_diagnosticas(task_prompt: str, task_grade: str = "2º ano")
 
     # ✍️ Força a IA a planejar exatamente 'quantidade' atividades
     prompt_reforcado = f"{task_prompt.strip()}\n\nQuantidade esperada de atividades: {quantidade}"
-    plan = generate_activity_plan(prompt_reforcado, task_grade)
+    plano = generate_activity_plan(prompt_reforcado, task_grade)
 
-    if not isinstance(plan, list) or len(plan) == 0:
+    if not isinstance(plano, list) or len(plano) == 0:
         raise Exception("❌ Plano de atividades retornou vazio ou inválido.")
 
-    atividades = []
+    plano = plano[:quantidade]
 
-    for idx, atividade in enumerate(plan[:quantidade]):
-        descricao = atividade.get("descricao", "")
-        com_imagem = atividade.get("com_imagem", False)
+    # 🔍 Coleta imagens para atividades que solicitam
+    descricoes_com_imagem = [a.get("descricao", "") for a in plano if a.get("com_imagem")]
+    imagens = generate_images_from_list(descricoes_com_imagem) if descricoes_com_imagem else []
+    imagem_map = dict(zip(descricoes_com_imagem, imagens))
 
-        # 🔍 Busca imagem imediatamente se necessário
-        imagem_url = None
-        if com_imagem:
-            urls = generate_images_from_list([descricao])
-            imagem_url = urls[0] if urls else None
+    # 🧠 Gera as instruções completas via agente de escrita
+    descricoes = [a.get("descricao", "") for a in plano]
+    atividades_geradas = generate_text("\n".join(descricoes), quantidade_atividades=quantidade)
 
-        # ✅ Passa o índice corretamente para manter a enumeração
-        atividade_gerada = generate_text_from_activity(descricao, imagem_url, atividade_index=idx)
+    atividades_final = []
+    for idx, atividade in enumerate(atividades_geradas):
+        atividade["titulo"] = f"ATIVIDADE {idx + 1}"
 
-        # ✅ Garante título com enumeração
-        atividade_gerada["titulo"] = f"ATIVIDADE {idx + 1}"
+        # Associa imagem, se houver
+        descricao_original = plano[idx].get("descricao", "")
+        if plano[idx].get("com_imagem"):
+            atividade["imagem_url"] = imagem_map.get(descricao_original)
 
-        # 🚨 Verificação preventiva antes de validar com schema
+        # Verificação preventiva
         if not (
-            isinstance(atividade_gerada, dict)
-            and atividade_gerada.get("titulo")
-            and atividade_gerada.get("instrucao")
-            and isinstance(atividade_gerada.get("opcoes", []), list)
-            and len(atividade_gerada["opcoes"]) >= 2
+            isinstance(atividade, dict)
+            and atividade.get("titulo")
+            and atividade.get("instrucao")
+            and isinstance(atividade.get("opcoes", []), list)
+            and len(atividade["opcoes"]) >= 2
         ):
             print(f"[VALIDAÇÃO PREVENTIVA] Atividade {idx + 1} ignorada (estrutura incompleta).")
             continue
 
         try:
-            # 🧪 Validação final com pydantic
-            Atividade(**atividade_gerada)
-            atividades.append(atividade_gerada)
+            Atividade(**atividade)
+            atividades_final.append(atividade)
         except Exception as e:
             print(f"[VALIDAÇÃO] Atividade {idx + 1} inválida:", e)
 
-    return atividades
+    return atividades_final
