@@ -26,8 +26,14 @@ def format_task_output_as_worksheet(task_id: str, all_results: list[dict], agent
         output.append(f"TRILHA {idx + 1}\n" + "=" * 80 + "\n")
 
         for atividade in atividades_por_trilha[idx]:
-            # 1. Título
-            titulo = atividade.get("titulo") or f"ATIVIDADE {atividade_index}"
+            # 1. Título com enumeração forçada
+            raw_titulo = atividade.get("titulo", "").strip()
+            if raw_titulo.upper().startswith("ATIVIDADE"):
+                titulo = raw_titulo  # já tem prefixo
+            elif raw_titulo:
+                titulo = f"ATIVIDADE {atividade_index} - {raw_titulo}"
+            else:
+                titulo = f"ATIVIDADE {atividade_index}"
             output.append(titulo)
             atividade_index += 1
 
