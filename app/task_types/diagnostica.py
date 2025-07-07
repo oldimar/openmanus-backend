@@ -15,7 +15,6 @@ def extrair_numero_atividades(descricao: str, default: int = 5) -> int:
 def gerar_atividades_diagnosticas(task_prompt: str, task_grade: str = "2º ano") -> list:
     quantidade = extrair_numero_atividades(task_prompt)
 
-    # ✍️ Força a IA a planejar exatamente 'quantidade' atividades
     prompt_reforcado = f"{task_prompt.strip()}\n\nQuantidade esperada de atividades: {quantidade}"
     plan = generate_activity_plan(prompt_reforcado, task_grade)
 
@@ -28,18 +27,16 @@ def gerar_atividades_diagnosticas(task_prompt: str, task_grade: str = "2º ano")
         descricao = atividade.get("descricao", "")
         com_imagem = atividade.get("com_imagem", False)
 
-        # 🔍 Busca imagem imediatamente se necessário
         imagem_url = None
         if com_imagem:
             urls = generate_images_from_list([descricao])
             imagem_url = urls[0] if urls else None
 
         atividade_gerada = generate_text_from_activity(descricao, imagem_url)
-
-        # ✅ Corrige título
         atividade_gerada["titulo"] = f"ATIVIDADE {idx + 1}"
 
-        # 🚨 Verificação preventiva antes de validar com schema
+        print(f"[DEBUG] Atividade {idx + 1} gerada:", atividade_gerada)
+
         if not (
             isinstance(atividade_gerada, dict)
             and atividade_gerada.get("titulo")
@@ -51,10 +48,11 @@ def gerar_atividades_diagnosticas(task_prompt: str, task_grade: str = "2º ano")
             continue
 
         try:
-            # 🧪 Validação final com pydantic
             Atividade(**atividade_gerada)
             atividades.append(atividade_gerada)
         except Exception as e:
             print(f"[VALIDAÇÃO] Atividade {idx + 1} inválida:", e)
 
+    print(f"✅ Total de atividades válidas: {len(atividades)} de {quantidade}")
     return atividades
+
