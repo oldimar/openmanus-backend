@@ -3,6 +3,7 @@ import json
 from dotenv import load_dotenv
 from openai import OpenAI
 from urllib.parse import urlparse
+from app.atividade_schema import Atividade  # Importa schema para validação final
 
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -20,6 +21,7 @@ def is_valid_url(url: str) -> bool:
 def generate_text(task_description: str, quantidade_atividades: int = 5) -> list:
     """
     Gera múltiplas atividades pedagógicas com base no pedido do usuário.
+    Sempre retorna uma lista de atividades já no modelo padronizado.
     """
     escaped_description = json.dumps(task_description, ensure_ascii=False)
     prompt = f"""
@@ -68,25 +70,58 @@ Formato de saída JSON esperado:
     elif content.startswith("```"):
         content = content.removeprefix("```").removesuffix("```").strip()
 
+    atividades = []
     try:
-        atividades = json.loads(content)
-        if isinstance(atividades, list):
-            return atividades
-        else:
+        raw_atividades = json.loads(content)
+        if not isinstance(raw_atividades, list):
             print("[WRITE_AGENT] ⚠️ IA retornou JSON, mas não é uma lista.")
-            return []
+            raw_atividades = []
+
+        for idx in range(quantidade_atividades):
+            atv = raw_atividades[idx] if idx < len(raw_atividades) and isinstance(raw_atividades[idx], dict) else {}
+            atividade_padrao = {
+                "titulo": atv.get("titulo", f"ATIVIDADE {idx + 1}"),
+                "instrucao": atv.get("instrucao", "🔊 Responda a atividade."),
+                "opcoes": atv.get("opcoes", ["( ) Alternativa 1", "( ) Alternativa 2"]),
+                "imagem_url": None  # NUNCA haverá imagem aqui no fluxo multi (imagem só em generate_text_from_activity)
+            }
+            # Validação com schema
+            try:
+                Atividade(**atividade_padrao)
+                atividades.append(atividade_padrao)
+            except Exception as e:
+                print(f"[WRITE_AGENT] Atividade {idx+1} inválida, gerando placeholder: {e}")
+                atividades.append({
+                    "titulo": f"ATIVIDADE {idx + 1}",
+                    "instrucao": "🔊 Erro ao gerar atividade. Favor revisar.",
+                    "opcoes": ["( ) Alternativa 1", "( ) Alternativa 2"],
+                    "imagem_url": None
+                })
+        return atividades
+
     except Exception as e:
         print(f"[WRITE_AGENT] ❌ Erro ao interpretar JSON da IA: {e}")
         print("[WRITE_AGENT] Conteúdo recebido:", repr(content))
-        return []
+        # Se falhar tudo, devolve lista de placeholders
+        return [
+            {
+                "titulo": f"ATIVIDADE {i+1}",
+                "instrucao": "🔊 Atividade não gerada corretamente.",
+                "opcoes": ["( ) Alternativa 1", "( ) Alternativa 2"],
+                "imagem_url": None
+            }
+            for i in range(quantidade_atividades)
+        ]
 
 
 def generate_text_from_activity(descricao: str, imagem_url: str = None, atividade_index: int = None) -> dict:
     """
     Gera uma única atividade com base na descrição e (opcionalmente) uma imagem.
+    Retorna já no modelo final, validado.
     """
-    escaped_descricao = json.dumps(descricao, ensure_ascii=False)
+    from app.atividade_schema import Atividade
 
+    escaped_descricao = json.dumps(descricao, ensure_ascii=False)
     prompt = f"""
 Você é um gerador de atividades interativas para alunos de 6 a 9 anos.
 
@@ -141,16 +176,15 @@ A atividade gerada deve ser estruturada como JSON com os seguintes campos:
         }
 
     try:
-        atividade = json.loads(content)
-
-        # Garante imagem válida
-        atividade["imagem_url"] = imagem_url if is_valid_url(imagem_url or "") else None
-
-        # Força título padronizado, mesmo que a IA esqueça
-        if atividade_index is not None:
-            atividade["titulo"] = f"ATIVIDADE {atividade_index + 1}"
-
-        return atividade
+        atv = json.loads(content)
+        atividade_padrao = {
+            "titulo": atv.get("titulo", f"ATIVIDADE {atividade_index + 1}" if atividade_index is not None else "ATIVIDADE GERADA"),
+            "instrucao": atv.get("instrucao", "🔊 Responda a atividade."),
+            "opcoes": atv.get("opcoes", ["( ) Alternativa 1", "( ) Alternativa 2"]),
+            "imagem_url": imagem_url if is_valid_url(imagem_url or "") else None
+        }
+        Atividade(**atividade_padrao)
+        return atividade_padrao
 
     except Exception as e:
         print(f"[WRITE_AGENT] ❌ Erro ao interpretar JSON: {e}")
@@ -158,6 +192,6 @@ A atividade gerada deve ser estruturada como JSON com os seguintes campos:
         return {
             "titulo": f"ATIVIDADE {atividade_index + 1}" if atividade_index is not None else "ATIVIDADE MALFORMADA",
             "instrucao": "🔊 A IA gerou uma resposta, mas ela não pôde ser interpretada como JSON.",
-            "opcoes": [content],
+            "opcoes": ["( ) Alternativa 1", "( ) Alternativa 2"],
             "imagem_url": imagem_url if is_valid_url(imagem_url or "") else None
         }
