@@ -24,13 +24,11 @@ tasks = {}
 UPLOAD_FOLDER = "uploads"
 model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
-
 def extrair_numero_atividades(descricao: str, default: int = 5) -> int:
     match = re.search(r"\b(\d+)\s+(atividades|questões|perguntas|exercícios)", descricao.lower())
     if match:
         return int(match.group(1))
     return default
-
 
 def validar_atividades_modelo_final(atividades: list) -> list:
     """
@@ -52,6 +50,14 @@ def validar_atividades_modelo_final(atividades: list) -> list:
             })
     return atividades_corrigidas
 
+def converter_httpurl_para_str(atividades):
+    """
+    Garante que o campo imagem_url seja sempre string ou None para serialização JSON.
+    """
+    for a in atividades:
+        if "imagem_url" in a and a["imagem_url"] is not None:
+            a["imagem_url"] = str(a["imagem_url"])
+    return atividades
 
 async def process_task(task_text, task_id):
     tasks[task_id] = {"status": "processing", "result": None, "structured_result": None}
@@ -98,8 +104,9 @@ async def process_task(task_text, task_id):
             from app.task_types.diagnostica import gerar_atividades_diagnosticas
             atividades = gerar_atividades_diagnosticas(final_prompt, task_grade)
             atividades_validas = validar_atividades_modelo_final(atividades)
-            atividades_formatadas = format_atividades_para_app(atividades_validas)
-            tasks[task_id]["result"] = json.dumps(atividades_validas, ensure_ascii=False, indent=2)
+            atividades_json_ready = converter_httpurl_para_str(atividades_validas)
+            atividades_formatadas = format_atividades_para_app(atividades_json_ready)
+            tasks[task_id]["result"] = json.dumps(atividades_json_ready, ensure_ascii=False, indent=2)
             tasks[task_id]["structured_result"] = atividades_formatadas
             tasks[task_id]["status"] = "done"
             save_task_log(task_id=task_id, task_data=task_data, agents_run=["diagnostica"], results=tasks[task_id]["result"])
@@ -110,8 +117,9 @@ async def process_task(task_text, task_id):
             from app.task_types.trilha import gerar_atividades_trilha
             atividades = gerar_atividades_trilha(final_prompt, task_grade)
             atividades_validas = validar_atividades_modelo_final(atividades)
-            tasks[task_id]["result"] = json.dumps(atividades_validas, ensure_ascii=False, indent=2)
-            tasks[task_id]["structured_result"] = atividades_validas
+            atividades_json_ready = converter_httpurl_para_str(atividades_validas)
+            tasks[task_id]["result"] = json.dumps(atividades_json_ready, ensure_ascii=False, indent=2)
+            tasks[task_id]["structured_result"] = atividades_json_ready
             tasks[task_id]["status"] = "done"
             save_task_log(task_id=task_id, task_data=task_data, agents_run=["trilha"], results=tasks[task_id]["result"])
             return tasks[task_id]["result"], tasks[task_id]["structured_result"]
@@ -143,8 +151,9 @@ async def process_task(task_text, task_id):
             atividades_estruturadas.append(atividade_gerada)
 
         atividades_validas = validar_atividades_modelo_final(atividades_estruturadas)
-        full_result = json.dumps(atividades_validas, ensure_ascii=False, indent=2)
-        atividades_final = parse_task_output_into_structured_data(atividades_validas, agentes=["write"])
+        atividades_json_ready = converter_httpurl_para_str(atividades_validas)
+        full_result = json.dumps(atividades_json_ready, ensure_ascii=False, indent=2)
+        atividades_final = parse_task_output_into_structured_data(atividades_json_ready, agentes=["write"])
 
         tasks[task_id]["result"] = full_result
         tasks[task_id]["structured_result"] = atividades_final
@@ -165,7 +174,6 @@ async def process_task(task_text, task_id):
 
     return tasks[task_id]["result"], tasks[task_id]["structured_result"]
 
-
 def run_agent_by_type(agent_type, prompt_text, quantidade_atividades=5):
     if agent_type == "plan":
         return generate_activity_plan(prompt_text)
@@ -180,7 +188,6 @@ def run_agent_by_type(agent_type, prompt_text, quantidade_atividades=5):
     else:
         raise Exception(f"Agente desconhecido: '{agent_type}'")
 
-
 async def save_uploaded_file(file):
     folder_name = datetime.now().strftime("%Y%m%d_%H%M%S")
     folder_path = os.path.join(UPLOAD_FOLDER, folder_name)
@@ -189,7 +196,6 @@ async def save_uploaded_file(file):
     with open(file_location, "wb") as f:
         f.write(await file.read())
     return {"task_id_files": folder_name, "filename": file.filename, "message": "File uploaded successfully"}
-
 
 async def save_uploaded_files(files):
     folder_name = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -202,7 +208,6 @@ async def save_uploaded_files(files):
             f.write(await file.read())
         saved_files.append(file.filename)
     return {"task_id_files": folder_name, "filenames": saved_files, "message": "Files uploaded successfully"}
-
 
 def save_task_log(task_id, task_data, agents_run, results):
     try:
