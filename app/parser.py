@@ -11,7 +11,6 @@ def parse_task_output_into_structured_data(resultados, agentes, quantidade_esper
 
         if isinstance(resultado, list):
             for idx, item in enumerate(resultado):
-                texto = ""
                 titulo = item.get("titulo", "").strip() or f"ATIVIDADE {idx+1}"
                 instrucao = item.get("instrucao", "").strip()
                 opcoes_raw = item.get("opcoes", [])
@@ -19,17 +18,17 @@ def parse_task_output_into_structured_data(resultados, agentes, quantidade_esper
                 if not instrucao or not isinstance(opcoes_raw, list) or len(opcoes_raw) < 2:
                     continue
 
-                texto += f"{titulo}\n{instrucao}"
+                # Só captura imagem_url (string ou None)
+                imagem_url = item.get("imagem_url", None)
+                if imagem_url and not (isinstance(imagem_url, str) and imagem_url.startswith("http")):
+                    imagem_url = None
 
                 atividade = {
-                    "texto": texto.strip(),
+                    "titulo": titulo,
+                    "instrucao": instrucao,
                     "opcoes": [str(op).strip() for op in opcoes_raw],
-                    "imagens_url": []
+                    "imagem_url": imagem_url
                 }
-
-                # ✅ Captura imagem_url da IA (caso tenha)
-                if "imagem_url" in item and isinstance(item["imagem_url"], str):
-                    atividade["imagens_url"].append(item["imagem_url"])
 
                 atividades.append(atividade)
             continue
@@ -41,7 +40,6 @@ def parse_task_output_into_structured_data(resultados, agentes, quantidade_esper
                 try:
                     json_data = json.loads(json_match.group())
                     for idx, item in enumerate(json_data):
-                        texto = ""
                         titulo = item.get("titulo", "").strip() or f"ATIVIDADE {idx+1}"
                         instrucao = item.get("instrucao", "").strip()
                         opcoes_raw = item.get("opcoes", [])
@@ -49,16 +47,16 @@ def parse_task_output_into_structured_data(resultados, agentes, quantidade_esper
                         if not instrucao or not isinstance(opcoes_raw, list) or len(opcoes_raw) < 2:
                             continue
 
-                        texto += f"{titulo}\n{instrucao}"
+                        imagem_url = item.get("imagem_url", None)
+                        if imagem_url and not (isinstance(imagem_url, str) and imagem_url.startswith("http")):
+                            imagem_url = None
 
                         atividade = {
-                            "texto": texto.strip(),
+                            "titulo": titulo,
+                            "instrucao": instrucao,
                             "opcoes": [str(op).strip() for op in opcoes_raw],
-                            "imagens_url": []
+                            "imagem_url": imagem_url
                         }
-
-                        if "imagem_url" in item and isinstance(item["imagem_url"], str):
-                            atividade["imagens_url"].append(item["imagem_url"])
 
                         atividades.append(atividade)
                     continue
@@ -74,7 +72,10 @@ def parse_task_output_into_structured_data(resultados, agentes, quantidade_esper
                     if not linhas or all(not l.strip() for l in linhas):
                         continue
 
-                    atividade = {"texto": "", "opcoes": [], "imagens_url": []}
+                    titulo = None
+                    instrucao = None
+                    opcoes = []
+                    imagem_url = None
 
                     for linha in linhas:
                         linha = linha.strip()
@@ -84,45 +85,53 @@ def parse_task_output_into_structured_data(resultados, agentes, quantidade_esper
                         if re.match(r"^Resultado do agente '.*?':$", linha):
                             continue
 
+                        # Captura imagem como string apenas
                         markdown_imgs = re.findall(r"!\[.*?\]\((https?://.*?)\)", linha)
                         html_imgs = re.findall(r'<img\s+[^>]*src=["\'](https?://.*?)["\']', linha)
                         url_imgs = re.findall(r"^https?://.*\.(png|jpg|jpeg|gif|webp)$", linha, re.IGNORECASE)
 
-                        for img in markdown_imgs + html_imgs + url_imgs:
-                            atividade["imagens_url"].append(img)
+                        # Só usa a primeira URL válida, se houver
+                        all_imgs = markdown_imgs + html_imgs + url_imgs
+                        if all_imgs and not imagem_url:
+                            imagem_url = all_imgs[0]
 
                         try:
                             if re.match(r"^\(\s?\)", linha):
-                                atividade["opcoes"].append(linha)
+                                opcoes.append(linha)
                             elif re.match(r"^\(\s?[A-Za-z0-9]+\)", linha):
-                                atividade["opcoes"].append(linha)
+                                opcoes.append(linha)
                             elif re.match(r"^[A-Da-d]\)", linha):
-                                atividade["opcoes"].append(linha)
+                                opcoes.append(linha)
                             elif re.match(r"^[0-9]+\.", linha):
-                                atividade["opcoes"].append(linha)
+                                opcoes.append(linha)
                             elif re.match(r"^[-*•+]\s", linha):
-                                atividade["opcoes"].append(linha)
-                            else:
-                                atividade["texto"] += linha + "\n"
+                                opcoes.append(linha)
+                            elif not titulo:
+                                titulo = linha if "atividade" in linha.lower() else None
+                            elif not instrucao:
+                                instrucao = linha
                         except re.error as e:
                             print(f"[parser] Regex error: {linha} => {e}")
-                            atividade["texto"] += linha + "\n"
+                            if not instrucao:
+                                instrucao = linha
 
-                    atividade["texto"] = atividade["texto"].strip()
-                    if not atividade["texto"].lower().startswith("atividade"):
-                        atividade["texto"] = f"ATIVIDADE {len(atividades)+1}\n" + atividade["texto"]
+                    # Fallbacks básicos
+                    titulo = titulo or f"ATIVIDADE {len(atividades)+1}"
+                    instrucao = instrucao or "🔊 Responda a atividade."
 
-                    atividade["opcoes"] = [op.strip() for op in atividade["opcoes"]]
-                    atividade["imagens_url"] = list(set(atividade["imagens_url"]))
-
-                    if atividade["texto"] and atividade["opcoes"]:
-                        atividades.append(atividade)
+                    if titulo and instrucao and opcoes:
+                        atividades.append({
+                            "titulo": titulo,
+                            "instrucao": instrucao,
+                            "opcoes": [op.strip() for op in opcoes],
+                            "imagem_url": imagem_url if imagem_url and isinstance(imagem_url, str) and imagem_url.startswith("http") else None
+                        })
 
     # 🔒 Remove duplicadas e corta se exceder
     unicos = []
     vistos = set()
     for a in atividades:
-        chave = (a["texto"], tuple(a["opcoes"]))
+        chave = (a["titulo"], a["instrucao"], tuple(a["opcoes"]))
         if chave not in vistos:
             unicos.append(a)
             vistos.add(chave)
