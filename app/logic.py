@@ -16,6 +16,7 @@ from app.ocr_reader import extract_text_from_pdf
 from app.formatters import format_task_output_as_worksheet
 from app.parser import parse_task_output_into_structured_data
 from app.formatters import format_atividades_para_app  # ✅ AJUSTADO
+from app.atividade_schema import Atividade  # IMPORTAÇÃO PARA VALIDAÇÃO
 
 load_dotenv()
 
@@ -29,6 +30,27 @@ def extrair_numero_atividades(descricao: str, default: int = 5) -> int:
     if match:
         return int(match.group(1))
     return default
+
+
+def validar_atividades_modelo_final(atividades: list) -> list:
+    """
+    Recebe uma lista de atividades, garante que todas estejam no modelo final.
+    Substitui por placeholder qualquer atividade inválida.
+    """
+    atividades_corrigidas = []
+    for idx, atv in enumerate(atividades, start=1):
+        try:
+            obj = Atividade(**atv)
+            atividades_corrigidas.append(obj.dict())
+        except Exception as e:
+            print(f"[LOGIC] Atividade {idx} inválida ao validar modelo final: {e}")
+            atividades_corrigidas.append({
+                "titulo": f"ATIVIDADE {idx}",
+                "instrucao": "🔊 Erro ao gerar atividade. Favor revisar.",
+                "opcoes": ["( ) Alternativa 1", "( ) Alternativa 2"],
+                "imagem_url": None
+            })
+    return atividades_corrigidas
 
 
 async def process_task(task_text, task_id):
@@ -75,8 +97,9 @@ async def process_task(task_text, task_id):
         if task_type == "diagnostica":
             from app.task_types.diagnostica import gerar_atividades_diagnosticas
             atividades = gerar_atividades_diagnosticas(final_prompt, task_grade)
-            atividades_formatadas = format_atividades_para_app(atividades)  # ✅ AQUI ENTRA O FORMATO
-            tasks[task_id]["result"] = json.dumps(atividades, ensure_ascii=False, indent=2)
+            atividades_validas = validar_atividades_modelo_final(atividades)
+            atividades_formatadas = format_atividades_para_app(atividades_validas)
+            tasks[task_id]["result"] = json.dumps(atividades_validas, ensure_ascii=False, indent=2)
             tasks[task_id]["structured_result"] = atividades_formatadas
             tasks[task_id]["status"] = "done"
             save_task_log(task_id=task_id, task_data=task_data, agents_run=["diagnostica"], results=tasks[task_id]["result"])
@@ -86,8 +109,9 @@ async def process_task(task_text, task_id):
         elif task_type == "trilha":
             from app.task_types.trilha import gerar_atividades_trilha
             atividades = gerar_atividades_trilha(final_prompt, task_grade)
-            tasks[task_id]["result"] = json.dumps(atividades, ensure_ascii=False, indent=2)
-            tasks[task_id]["structured_result"] = atividades
+            atividades_validas = validar_atividades_modelo_final(atividades)
+            tasks[task_id]["result"] = json.dumps(atividades_validas, ensure_ascii=False, indent=2)
+            tasks[task_id]["structured_result"] = atividades_validas
             tasks[task_id]["status"] = "done"
             save_task_log(task_id=task_id, task_data=task_data, agents_run=["trilha"], results=tasks[task_id]["result"])
             return tasks[task_id]["result"], tasks[task_id]["structured_result"]
@@ -118,9 +142,9 @@ async def process_task(task_text, task_id):
             atividade_gerada = generate_text_from_activity(descricao, imagem_url=imagem_url)
             atividades_estruturadas.append(atividade_gerada)
 
-        full_result = json.dumps(atividades_estruturadas, ensure_ascii=False, indent=2)
-
-        atividades_final = parse_task_output_into_structured_data(atividades_estruturadas, agentes=["write"])
+        atividades_validas = validar_atividades_modelo_final(atividades_estruturadas)
+        full_result = json.dumps(atividades_validas, ensure_ascii=False, indent=2)
+        atividades_final = parse_task_output_into_structured_data(atividades_validas, agentes=["write"])
 
         tasks[task_id]["result"] = full_result
         tasks[task_id]["structured_result"] = atividades_final
