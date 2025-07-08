@@ -171,8 +171,10 @@ async def process_task(task_text, task_id):
         tasks[task_id]["status"] = "error"
         tasks[task_id]["result"] = erro_msg
         save_task_log(task_id, task_data if 'task_data' in locals() else {}, [], erro_msg)
-        print("[DEBUG] structured_result final:", tasks[task_id]["structured_result"])
-        print("[DEBUG] result final:", tasks[task_id]["result"])
+        with open("DEBUG_structured_result.txt", "w", encoding="utf-8") as f:
+            f.write(json.dumps(tasks[task_id]["structured_result"], ensure_ascii=False, indent=2))
+        with open("DEBUG_result.txt", "w", encoding="utf-8") as f:
+            f.write(tasks[task_id]["result"] if isinstance(tasks[task_id]["result"], str) else json.dumps(tasks[task_id]["result"], ensure_ascii=False, indent=2))
 
     return tasks[task_id]["result"], tasks[task_id]["structured_result"]
 
