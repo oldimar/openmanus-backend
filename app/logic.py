@@ -171,6 +171,8 @@ async def process_task(task_text, task_id):
         tasks[task_id]["status"] = "error"
         tasks[task_id]["result"] = erro_msg
         save_task_log(task_id, task_data if 'task_data' in locals() else {}, [], erro_msg)
+        print("[DEBUG] structured_result final:", tasks[task_id]["structured_result"])
+        print("[DEBUG] result final:", tasks[task_id]["result"])
 
     return tasks[task_id]["result"], tasks[task_id]["structured_result"]
 
