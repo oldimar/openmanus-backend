@@ -3,9 +3,9 @@ def format_task_output_as_worksheet(task_id: str, all_results: list[dict], agent
     Gera um texto formatado no estilo Manus AI, com trilhas, atividades e imagens (se houver).
     Espera que `all_results` seja uma lista de dicionários com:
     - titulo: str (opcional)
-    - texto/instrucao: str
+    - instrucao: str
     - opcoes: list[str]
-    - imagens_url: list[str] ou imagem_url: str
+    - imagem_url: str (ou None)
     """
     trilha_index = 1
     atividade_index = 1
@@ -37,18 +37,15 @@ def format_task_output_as_worksheet(task_id: str, all_results: list[dict], agent
             output.append(titulo)
             atividade_index += 1
 
-            # 2. Texto ou instrução
-            texto = atividade.get("texto") or atividade.get("instrucao") or ""
-            if texto:
-                output.append("🔊 " + texto.strip())
+            # 2. Instrução
+            instrucao = atividade.get("instrucao", "")
+            if instrucao:
+                output.append("🔊 " + instrucao.strip())
 
-            # 3. Imagem (URL única ou lista)
-            imagem = atividade.get("imagem_url") or None
-            imagens = atividade.get("imagens_url") or []
-            if imagem and isinstance(imagem, str) and imagem.startswith("http"):
-                output.append(f"🖼️ IMAGEM: {imagem}")
-            elif imagens and isinstance(imagens, list) and imagens[0].startswith("http"):
-                output.append(f"🖼️ IMAGEM: {imagens[0]}")
+            # 3. Imagem (URL única)
+            imagem_url = atividade.get("imagem_url")
+            if imagem_url and isinstance(imagem_url, str) and imagem_url.startswith("http"):
+                output.append(f"🖼️ IMAGEM: {imagem_url}")
 
             # 4. Opções
             opcoes = atividade.get("opcoes", [])
@@ -66,7 +63,7 @@ def format_atividades_para_app(atividades: list[dict]) -> list[dict]:
     Formata uma lista de atividades no padrão usado pelo front:
     - texto: inclui "ATIVIDADE X" e a instrução (com emoji 🔊)
     - opcoes: lista de alternativas
-    - imagens_url: lista com 1 URL (se houver)
+    - imagem_url: string (ou None)
     """
     if not isinstance(atividades, list) or not atividades:
         return []
@@ -74,27 +71,21 @@ def format_atividades_para_app(atividades: list[dict]) -> list[dict]:
     resultado_formatado = []
 
     for idx, atividade in enumerate(atividades, start=1):
-        titulo = f"ATIVIDADE {idx}"
-
-        instrucao = (
-            atividade.get("instrucao") or
-            atividade.get("texto") or
-            atividade.get("titulo") or ""
-        ).strip()
-
+        titulo = atividade.get("titulo", f"ATIVIDADE {idx}").strip()
+        instrucao = atividade.get("instrucao", "").strip()
         texto = f"{titulo}\n🔊 {instrucao}" if instrucao else titulo
 
         opcoes = atividade.get("opcoes") or []
         if not isinstance(opcoes, list):
             opcoes = [str(opcoes)]
 
-        imagem_url = atividade.get("imagem_url") or ""
-        imagens_url = [imagem_url] if imagem_url and imagem_url.startswith("http") else []
+        imagem_url = atividade.get("imagem_url")
+        # Front espera string (None se não houver)
 
         resultado_formatado.append({
             "texto": texto,
             "opcoes": opcoes,
-            "imagens_url": imagens_url
+            "imagem_url": imagem_url if imagem_url and isinstance(imagem_url, str) and imagem_url.startswith("http") else None
         })
 
     return resultado_formatado
