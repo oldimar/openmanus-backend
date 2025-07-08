@@ -7,7 +7,6 @@ load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
-
 def generate_plan(prompt_text: str, task_grade: str = "", quantidade: int = 5) -> list:
     """
     Gera um plano de atividades com descrições, temas e indicação se requerem imagem.
@@ -53,7 +52,7 @@ Pedido do professor:
 
         content = response.choices[0].message.content.strip()
 
-        # Debug
+        # Debug para rastrear a resposta da IA
         print("[PLAN_AGENT] Conteúdo retornado:", repr(content))
 
         # Limpeza de blocos markdown
@@ -62,11 +61,20 @@ Pedido do professor:
         elif content.startswith("```"):
             content = content.removeprefix("```").removesuffix("```").strip()
 
-        atividades = json.loads(content)
-        if isinstance(atividades, list):
-            return atividades
-        else:
-            print("[PLAN_AGENT] ⚠️ JSON recebido não é uma lista.")
+        try:
+            atividades = json.loads(content)
+            # Garante que sempre seja uma lista, mesmo se vier só um dict
+            if isinstance(atividades, dict):
+                atividades = [atividades]
+            if isinstance(atividades, list):
+                print(f"[PLAN_AGENT] Atividades geradas: {len(atividades)}")
+                return atividades
+            else:
+                print("[PLAN_AGENT] ⚠️ JSON recebido não é lista nem dict.")
+                return []
+        except Exception as e:
+            print(f"[PLAN_AGENT] ❌ Erro ao interpretar JSON: {e}")
+            print("[PLAN_AGENT] Conteúdo problemático:", repr(content))
             return []
 
     except Exception as e:
